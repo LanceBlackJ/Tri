@@ -1,0 +1,557 @@
+{% extends 'base.html' %}
+
+{% block title %}课程资料管理{% endblock %}
+
+{% block page_title %}课程资料管理{% endblock %}
+
+{% block page_description %}{{ course.title }} - 管理课程资料和设置{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* 本页外观交给全站收敛层（site.css 里 [class$='-hero']/[class$='-panel']/[class$='-card']
+       统一处理：白底、--app-radius 小圆角、细边框、无阴影），这里只写布局/间距/排版，
+       不再自己定义 background/border/border-radius/box-shadow，避免和其他页面风格不一致。 */
+
+    .detail-hero {
+        padding: 2rem 2.25rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .detail-hero-content {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        flex-wrap: wrap;
+        gap: 2rem;
+    }
+
+    .detail-hero-title {
+        font-family: 'Noto Serif SC', 'Songti SC', serif;
+        font-size: 1.9rem;
+        font-weight: 700;
+        margin-bottom: 0.6rem;
+        letter-spacing: -0.02em;
+    }
+
+    .detail-hero-desc {
+        font-size: 0.9rem;
+        margin-bottom: 1rem;
+        max-width: 450px;
+        line-height: 1.6;
+    }
+
+    .detail-stats {
+        display: flex;
+        gap: 0.9rem;
+        flex-wrap: wrap;
+    }
+
+    .detail-stat-card {
+        padding: 1rem 1.3rem;
+        min-width: 130px;
+        text-align: center;
+    }
+
+    .detail-stat-label {
+        font-size: 0.7rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        color: var(--app-muted);
+        margin-bottom: 0.4rem;
+    }
+
+    .detail-stat-value {
+        font-size: 1.4rem;
+        font-weight: 800;
+        color: var(--app-ink);
+    }
+
+    .detail-hero-bottom {
+        display: flex;
+        justify-content: flex-end;
+        flex-wrap: wrap;
+        gap: 0.75rem;
+        margin-top: 1.75rem;
+        padding-top: 1.25rem;
+        border-top: 1px solid var(--app-line);
+    }
+
+    .detail-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.65rem 1.3rem;
+        border-radius: var(--app-radius);
+        font-size: 0.85rem;
+        font-weight: 600;
+        text-decoration: none;
+        border: 1px solid transparent;
+        cursor: pointer;
+        transition: background 0.15s ease, border-color 0.15s ease;
+    }
+
+    .detail-btn-primary {
+        background: var(--app-teal) !important;
+        color: #ffffff !important;
+        border-color: var(--app-teal) !important;
+    }
+    .detail-btn-primary:hover { background: var(--app-teal-strong) !important; }
+
+    .detail-btn-secondary {
+        background: #ffffff !important;
+        color: var(--app-ink) !important;
+        border-color: var(--app-line) !important;
+    }
+    .detail-btn-secondary:hover { background: #f6f8fa !important; }
+
+    .detail-btn-danger {
+        background: #fef2f2 !important;
+        color: #b91c1c !important;
+        border-color: rgba(185, 28, 28, 0.28) !important;
+    }
+    .detail-btn-danger:hover { background: #fee2e2 !important; }
+
+    .detail-grid {
+        display: grid;
+        grid-template-columns: minmax(320px, 0.5fr) minmax(0, 1fr);
+        gap: 1.5rem;
+    }
+
+    .detail-upload-card,
+    .detail-panel {
+        padding: 1.6rem;
+    }
+
+    .detail-panel-badge {
+        display: inline-block;
+        padding: 0.25rem 0.75rem;
+        border-radius: 999px;
+        font-size: 0.72rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        background: #e8f1fb;
+        color: var(--app-teal);
+        margin-bottom: 0.5rem;
+    }
+
+    .detail-panel-title {
+        font-size: 1.1rem;
+        font-weight: 700;
+        color: var(--app-ink);
+        margin-bottom: 0.25rem;
+    }
+
+    .detail-panel-desc {
+        font-size: 0.82rem;
+        color: var(--app-muted);
+    }
+
+    .detail-form {
+        display: flex;
+        flex-direction: column;
+        gap: 1.1rem;
+        margin-top: 1.4rem;
+    }
+
+    .detail-form label {
+        display: block;
+        font-size: 0.8rem;
+        font-weight: 600;
+        color: var(--app-ink);
+        margin-bottom: 0.35rem;
+    }
+
+    .detail-form input[type="text"],
+    .detail-form textarea {
+        width: 100%;
+        padding: 0.75rem 0.9rem;
+        border-radius: var(--app-radius);
+        border: 1px solid var(--app-line);
+        background: #f6f8fa;
+        font-size: 0.88rem;
+        color: var(--app-ink);
+        outline: none;
+        box-sizing: border-box;
+    }
+    .detail-form input[type="text"]:focus,
+    .detail-form textarea:focus {
+        border-color: var(--app-teal);
+        background: #ffffff;
+    }
+
+    .detail-form-error {
+        margin-top: 0.6rem;
+        padding: 0.7rem 0.85rem;
+        background: #fef2f2;
+        border: 1px solid rgba(220,38,38,0.2);
+        border-radius: var(--app-radius);
+        font-size: 0.76rem;
+        color: #dc2626;
+    }
+
+    .detail-form button[type="submit"] {
+        margin-top: 0.3rem;
+        padding: 0.85rem;
+        border-radius: var(--app-radius);
+        background: var(--app-teal);
+        color: #ffffff;
+        font-size: 0.85rem;
+        font-weight: 600;
+        border: none;
+        cursor: pointer;
+    }
+    .detail-form button[type="submit"]:hover { background: var(--app-teal-strong); }
+
+    /* 文件选择：隐藏原生丑按钮的 input，改用一个可点击的“选择文件”触发块 +
+       文件名回显，点击整块都能唤起系统文件选择框（label[for] 原生行为，无需 JS）。 */
+    .material-file-input {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        padding: 0;
+        margin: -1px;
+        overflow: hidden;
+        clip: rect(0, 0, 0, 0);
+        white-space: nowrap;
+        border: 0;
+    }
+
+    .material-file-drop {
+        display: flex;
+        align-items: center;
+        gap: 0.9rem;
+        padding: 1rem 1.1rem;
+        border: 1.5px dashed var(--app-line-strong);
+        border-radius: var(--app-radius);
+        background: #f6f8fa;
+        cursor: pointer;
+        transition: border-color 0.15s ease, background 0.15s ease;
+    }
+    .material-file-drop:hover {
+        border-color: var(--app-teal);
+        background: #eef5fb;
+    }
+    .material-file-drop-icon {
+        flex: 0 0 auto;
+        width: 2.4rem;
+        height: 2.4rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: var(--app-radius);
+        background: var(--app-teal);
+        color: #ffffff;
+        font-size: 1rem;
+    }
+    .material-file-drop-text { min-width: 0; }
+    .material-file-drop-title {
+        font-size: 0.86rem;
+        font-weight: 700;
+        color: var(--app-ink);
+    }
+    .material-file-drop-name {
+        margin-top: 0.15rem;
+        font-size: 0.78rem;
+        color: var(--app-muted);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .detail-material-list {
+        display: flex;
+        flex-direction: column;
+        gap: 0.9rem;
+        margin-top: 1.4rem;
+    }
+
+    .detail-material-card {
+        display: flex;
+        align-items: flex-start;
+        gap: 1rem;
+        padding: 1.1rem;
+    }
+
+    .detail-reorder-group {
+        flex: 0 0 auto;
+        display: flex;
+        flex-direction: column;
+        gap: 0.3rem;
+        margin-top: 0.1rem;
+    }
+
+    .detail-reorder-btn {
+        width: 1.9rem;
+        height: 1.6rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: var(--app-radius-sm);
+        border: 1px solid var(--app-line);
+        background: #ffffff;
+        color: var(--app-ink);
+        font-size: 0.72rem;
+        cursor: pointer;
+    }
+    .detail-reorder-btn:hover:not(:disabled) { background: #f6f8fa; border-color: var(--app-line-strong); }
+    .detail-reorder-btn:disabled { opacity: 0.32; cursor: not-allowed; }
+
+    .detail-material-body { flex: 1; min-width: 0; }
+
+    .detail-material-title {
+        font-size: 0.95rem;
+        font-weight: 600;
+        color: var(--app-ink);
+        margin-bottom: 0.3rem;
+    }
+
+    .detail-material-desc {
+        font-size: 0.82rem;
+        color: var(--app-muted);
+        margin-bottom: 0.6rem;
+    }
+
+    .detail-material-meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.75rem;
+        font-size: 0.76rem;
+        color: var(--app-muted);
+    }
+
+    .detail-material-actions {
+        flex: 0 0 auto;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+        align-items: center;
+    }
+
+    .detail-chip {
+        display: inline-flex;
+        align-items: center;
+        padding: 0.3rem 0.7rem;
+        border-radius: 999px;
+        font-size: 0.72rem;
+        font-weight: 600;
+    }
+    .detail-chip-green { background: #dbeafe; color: var(--app-ink); border: 1px solid rgba(59,130,246,0.2); }
+    .detail-chip-yellow { background: #e8f1fb; color: var(--app-teal); border: 1px solid rgba(18,86,138,0.2); }
+    .detail-chip-red { background: #fee2e2; color: #dc2626; border: 1px solid rgba(220,38,38,0.2); }
+
+    .detail-link {
+        display: inline-flex;
+        align-items: center;
+        padding: 0.5rem 0.85rem;
+        border-radius: var(--app-radius);
+        font-size: 0.76rem;
+        font-weight: 600;
+        text-decoration: none;
+        border: 1px solid transparent;
+        cursor: pointer;
+    }
+    .detail-link-primary { background: var(--app-teal) !important; color: #ffffff !important; }
+    .detail-link-secondary { background: #ffffff !important; color: var(--app-ink) !important; border-color: var(--app-line) !important; }
+    .detail-link-danger { background: #fef2f2 !important; color: #b91c1c !important; border-color: rgba(185,28,28,0.25) !important; }
+
+    .detail-empty {
+        padding: 2.5rem;
+        background: #f6f8fa;
+        border-radius: var(--app-radius);
+        text-align: center;
+        border: 1px dashed var(--app-line);
+    }
+    .detail-empty-text { font-size: 0.88rem; color: var(--app-muted); }
+
+    @media (max-width: 900px) {
+        .detail-grid { grid-template-columns: 1fr; }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="detail-hero">
+    <div class="detail-hero-content">
+        <div>
+            <h1 class="detail-hero-title">{{ course.title }}</h1>
+            <p class="detail-hero-desc">{{ course.description|default:course.summary|default:'暂无课程说明' }}</p>
+            <div style="display:flex; gap:0.75rem; flex-wrap:wrap;">
+                <a href="{% url 'teacher_course_library' %}" class="detail-btn detail-btn-secondary">返回课程库</a>
+                {% if course.status == 'published' %}
+                    <a href="{% url 'course_study' course.id %}" class="detail-btn detail-btn-secondary">学生学习页</a>
+                {% endif %}
+            </div>
+        </div>
+        <div class="detail-stats">
+            <div class="detail-stat-card">
+                <div class="detail-stat-label">状态</div>
+                <div class="detail-stat-value">{{ course.get_status_display }}</div>
+            </div>
+            <div class="detail-stat-card">
+                <div class="detail-stat-label">可见性</div>
+                <div class="detail-stat-value">{{ course.get_visibility_display }}</div>
+            </div>
+            <div class="detail-stat-card">
+                <div class="detail-stat-label">资料数</div>
+                <div class="detail-stat-value">{{ materials|length }}</div>
+            </div>
+        </div>
+    </div>
+    <div class="detail-hero-bottom">
+        {% if course.visibility != 'public' %}
+            <form method="post" style="display:inline;">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="set_visibility_public">
+                <button type="submit" class="detail-btn detail-btn-secondary">设为公开</button>
+            </form>
+        {% endif %}
+        {% if course.visibility != 'private' %}
+            <form method="post" style="display:inline;">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="set_visibility_private">
+                <button type="submit" class="detail-btn detail-btn-secondary">设为私有</button>
+            </form>
+        {% endif %}
+        {% if course.status != 'published' %}
+            <form method="post" style="display:inline;">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="publish_course">
+                <button type="submit" class="detail-btn detail-btn-primary">发布课程</button>
+            </form>
+        {% endif %}
+        {% if course.status != 'archived' %}
+            <form method="post" style="display:inline;">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="archive_course">
+                <button type="submit" class="detail-btn detail-btn-danger">归档课程</button>
+            </form>
+        {% endif %}
+    </div>
+</div>
+
+<div class="detail-grid">
+    <div class="detail-upload-card">
+        <span class="detail-panel-badge">上传</span>
+        <h2 class="detail-panel-title">上传课程资料</h2>
+        <p class="detail-panel-desc">支持 PDF、PPT、DOCX 格式，上传后自动解析；类型自动识别，顺序自动排到末尾。</p>
+        <form method="post" enctype="multipart/form-data" class="detail-form">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="upload_material">
+
+            <div>
+                <label for="materialFileInput">资料文件</label>
+                <label for="materialFileInput" class="material-file-drop">
+                    <span class="material-file-drop-icon"><i class="fas fa-cloud-arrow-up"></i></span>
+                    <span class="material-file-drop-text">
+                        <span class="material-file-drop-title">点击选择文件</span>
+                        <div class="material-file-drop-name" id="materialFileName">未选择文件</div>
+                    </span>
+                </label>
+                {{ material_form.file }}
+                {% if material_form.file.errors %}<div class="detail-form-error">{{ material_form.file.errors|join:'，' }}</div>{% endif %}
+            </div>
+
+            <div>
+                <label for="{{ material_form.title.id_for_label }}">{{ material_form.title.label }}</label>
+                {{ material_form.title }}
+                {% if material_form.title.errors %}<div class="detail-form-error">{{ material_form.title.errors|join:'，' }}</div>{% endif %}
+            </div>
+
+            <div>
+                <label for="{{ material_form.description.id_for_label }}">{{ material_form.description.label }}</label>
+                {{ material_form.description }}
+                {% if material_form.description.errors %}<div class="detail-form-error">{{ material_form.description.errors|join:'，' }}</div>{% endif %}
+            </div>
+
+            <button type="submit">上传资料</button>
+        </form>
+    </div>
+
+    <div class="detail-panel">
+        <span class="detail-panel-badge">资料</span>
+        <h2 class="detail-panel-title">已上传资料</h2>
+        <div class="detail-material-list">
+            {% for material in materials %}
+                <div class="detail-material-card">
+                    <div class="detail-reorder-group">
+                        <form method="post">
+                            {% csrf_token %}
+                            <input type="hidden" name="action" value="move_material_up">
+                            <input type="hidden" name="material_id" value="{{ material.id }}">
+                            <button type="submit" class="detail-reorder-btn" {% if forloop.first %}disabled{% endif %} title="上移">
+                                <i class="fas fa-chevron-up"></i>
+                            </button>
+                        </form>
+                        <form method="post">
+                            {% csrf_token %}
+                            <input type="hidden" name="action" value="move_material_down">
+                            <input type="hidden" name="material_id" value="{{ material.id }}">
+                            <button type="submit" class="detail-reorder-btn" {% if forloop.last %}disabled{% endif %} title="下移">
+                                <i class="fas fa-chevron-down"></i>
+                            </button>
+                        </form>
+                    </div>
+                    <div class="detail-material-body">
+                        <div class="detail-material-title">{{ material.title }}</div>
+                        <div class="detail-material-desc">{{ material.description|default:'' }}</div>
+                        <div class="detail-material-meta">
+                            <span>{{ material.get_material_type_display }}</span>
+                            <span>{{ material.file_size|filesizeformat }}</span>
+                            {% if material.metadata.chunk_count %}<span>片段：{{ material.metadata.chunk_count }}</span>{% endif %}
+                        </div>
+                        {% if material.metadata.parse_error %}<div class="detail-form-error" style="margin-top:0.75rem;">解析失败：{{ material.metadata.parse_error }}</div>{% endif %}
+                    </div>
+                    <div class="detail-material-actions">
+                        {% if material.processing_status == 'ready' %}
+                            <span class="detail-chip detail-chip-green">{{ material.get_processing_status_display }}</span>
+                            <a href="{% url 'course_study' course.id %}?material={{ material.id }}" class="detail-link detail-link-primary">学习</a>
+                        {% elif material.processing_status == 'pending' or material.processing_status == 'processing' %}
+                            <span class="detail-chip detail-chip-yellow">{{ material.get_processing_status_display }}</span>
+                        {% else %}
+                            <span class="detail-chip detail-chip-red">{{ material.get_processing_status_display }}</span>
+                        {% endif %}
+                        <a href="{{ material.file.url }}" target="_blank" class="detail-link detail-link-secondary">查看</a>
+                        {% if material.processing_status != 'pending' and material.processing_status != 'processing' %}
+                            <form method="post" style="display:inline;">
+                                {% csrf_token %}
+                                <input type="hidden" name="action" value="reprocess_material">
+                                <input type="hidden" name="material_id" value="{{ material.id }}">
+                                <button type="submit" class="detail-link detail-link-secondary">重新解析</button>
+                            </form>
+                        {% endif %}
+                        <form method="post" style="display:inline;" onsubmit="return confirm('确认删除？');">
+                            {% csrf_token %}
+                            <input type="hidden" name="action" value="delete_material">
+                            <input type="hidden" name="material_id" value="{{ material.id }}">
+                            <button type="submit" class="detail-link detail-link-danger">删除</button>
+                        </form>
+                    </div>
+                </div>
+            {% empty %}
+                <div class="detail-empty">
+                    <div class="detail-empty-text">暂无资料，先上传一份吧。</div>
+                </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<script>
+(function(){
+    var fileInput = document.getElementById('materialFileInput');
+    var fileNameEl = document.getElementById('materialFileName');
+    var titleInput = document.getElementById('materialTitleInput');
+    if (!fileInput) return;
+    fileInput.addEventListener('change', function(){
+        var file = fileInput.files && fileInput.files[0];
+        if (fileNameEl) fileNameEl.textContent = file ? file.name : '未选择文件';
+        if (file && titleInput && !titleInput.value.trim()) {
+            var stem = file.name.replace(/\.[^.]+$/, '').replace(/[_-]+/g, ' ').trim();
+            titleInput.value = stem;
+        }
+    });
+})();
+</script>
+{% endblock %}

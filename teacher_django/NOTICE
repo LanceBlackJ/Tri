@@ -1,0 +1,28 @@
+本项目使用了以下第三方开源组件与 AI 平台/工具，谨此致谢。完整的名称、来源与协议见
+docs/开源与AI工具说明.md。
+
+后端开源依赖（requirements.txt）：
+- Django            BSD-3-Clause   https://www.djangoproject.com
+- Celery            BSD-3-Clause   https://docs.celeryq.dev
+- redis-py          MIT            https://github.com/redis/redis-py
+- requests          Apache-2.0     https://requests.readthedocs.io
+- websocket-client  Apache-2.0     https://github.com/websocket-client/websocket-client
+- bcrypt            Apache-2.0     https://github.com/pyca/bcrypt
+- python-pptx       MIT            https://github.com/scanny/python-pptx
+- pypdf             BSD-3-Clause   https://github.com/py-pdf/pypdf
+- Pillow            MIT-CMU(HPND)  https://python-pillow.org
+
+前端开源库（CDN）：
+- Tailwind CSS      MIT
+- Font Awesome Free 图标 CC BY 4.0 / 字体 SIL OFL 1.1 / 代码 MIT
+- KaTeX             MIT
+- highlight.js      BSD-3-Clause
+- marked            MIT
+- DOMPurify         Apache-2.0 / MPL-2.0
+- Chart.js          MIT
+
+AI 大模型平台：
+- 科大讯飞·星火认知大模型（Spark）  讯飞开放平台 API 服务条款  https://xinghuo.xfyun.cn
+
+AI Coding 工具：
+- Claude Code（Anthropic）  遵循 Anthropic 使用条款  https://www.anthropic.com

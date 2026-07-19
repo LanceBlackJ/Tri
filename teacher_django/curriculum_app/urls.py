@@ -1,0 +1,33 @@
+from django.urls import path
+from . import views
+
+urlpatterns = [
+    path('teacher/courses/', views.teacher_course_library_view, name='teacher_course_library'),
+    path('teacher/courses/<int:course_id>/', views.teacher_course_detail_view, name='teacher_course_detail'),
+    path('courses/', views.course_library_view, name='course_library'),
+    path('courses/<int:course_id>/learn/', views.course_study_view, name='course_study'),
+    path('courses/<int:course_id>/ai/', views.course_ai_chat_view, name='course_ai_chat'),
+    path('courses/<int:course_id>/materials/<int:material_id>/quiz/generate/', views.generate_material_quiz, name='generate_material_quiz'),
+    path('courses/<int:course_id>/materials/<int:material_id>/quiz/submit/', views.submit_material_quiz, name='submit_material_quiz'),
+    path('courses/<int:course_id>/materials/<int:material_id>/quiz/feedback/', views.submit_material_quiz_feedback, name='submit_material_quiz_feedback'),
+    path('generator/', views.course_generator_view, name='course_generator'),
+    path('generate/', views.generate_course, name='generate_course'),
+    path('generate/stream/', views.generate_course_stream, name='generate_course_stream'),
+    path('generate/outline/stream/', views.generate_outline_stream, name='generate_outline_stream'),
+    path('outlines/<int:outline_id>/status/', views.course_outline_status_view, name='course_outline_status'),
+    path('progress/', views.learning_progress_view, name='learning_progress'),
+    path('progress/plans/<int:plan_id>/', views.learning_plan_detail_view, name='learning_plan_detail'),
+    path('progress/plans/<int:plan_id>/refresh/', views.refresh_learning_plan_view, name='refresh_learning_plan'),
+    path('background/<str:keyword>/', views.background_image, name='background_image'),
+    path('outline/<int:outline_id>/quiz/submit/', views.submit_quiz, name='submit_quiz'),
+    path('outline/<int:outline_id>/confirm/', views.confirm_course_blueprint, name='confirm_course_blueprint'),
+    path('outlines/bulk-delete/', views.bulk_delete_course_outlines, name='bulk_delete_course_outlines'),
+    path('outline/<int:outline_id>/delete/', views.delete_course_outline, name='delete_course_outline'),
+    path('outline/<int:outline_id>/export/pptx/', views.export_outline_pptx, name='export_outline_pptx'),
+    path('outline/<int:outline_id>/', views.course_outline_view, name='course_outline'),
+    path('tutor/chat/', views.tutor_chat, name='tutor_chat'),
+    path('tutor/generate/', views.tutor_generate, name='tutor_generate'),
+    path('outline/<int:outline_id>/export/stream/', views.export_outline_stream, name='export_outline_stream'),
+    path('outline/export/<int:export_id>/download/', views.download_export, name='download_export'),
+    path('outline/export/<int:export_id>/delete/', views.delete_export, name='delete_export'),
+]

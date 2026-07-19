@@ -1,0 +1,1263 @@
+{% extends 'base.html' %}
+
+{% block title %}学习画像构建 - Tri{% endblock %}
+{% block page_title %}构建画像{% endblock %}
+{% block page_description %}通过对话完善你的画像{% endblock %}
+
+{% block extra_css %}
+<style>
+    .profile-builder {
+        max-width: 1400px;
+        margin: 0 auto;
+        padding: 2rem;
+    }
+    
+    /* 头部区域 */
+    .builder-header {
+        background: linear-gradient(135deg, #1e293b 0%, #334155 50%, #475569 100%);
+        border-radius: 20px;
+        padding: 2rem 2.5rem;
+        color: #fff;
+        margin-bottom: 2rem;
+        position: relative;
+        overflow: hidden;
+    }
+    .builder-header::before {
+        content: '';
+        position: absolute;
+        top: -50%;
+        right: -20%;
+        width: 60%;
+        height: 100%;
+        background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
+    }
+    .header-content {
+        position: relative;
+        z-index: 1;
+    }
+    .header-title {
+        font-size: 2rem;
+        font-weight: 700;
+        margin-bottom: 0.5rem;
+    }
+    .header-desc {
+        font-size: 1rem;
+        color: rgba(255,255,255,0.85);
+        max-width: 600px;
+        line-height: 1.6;
+    }
+    .header-stats {
+        display: flex;
+        gap: 1.5rem;
+        margin-top: 1.5rem;
+    }
+    .header-stat {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+    }
+    .stat-icon {
+        width: 40px;
+        height: 40px;
+        background: rgba(255,255,255,0.15);
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.1rem;
+    }
+    .stat-info {
+        display: flex;
+        flex-direction: column;
+    }
+    .stat-number {
+        font-size: 1.5rem;
+        font-weight: 700;
+    }
+    .stat-label {
+        font-size: 0.75rem;
+        color: rgba(255,255,255,0.7);
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
+
+    /* 主内容区 */
+    .builder-main {
+        display: grid;
+        grid-template-columns: 1fr 420px;
+        gap: 2rem;
+    }
+    @media (max-width: 1000px) {
+        .builder-main {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    /* 左侧对话区 */
+    .chat-section {
+        display: flex;
+        flex-direction: column;
+        gap: 1.5rem;
+    }
+
+    /* 画像维度说明卡片 */
+    .dimensions-card {
+        background: #fff;
+        border-radius: 16px;
+        border: 1px solid #e2e8f0;
+        padding: 1.5rem;
+    }
+    .dimensions-header {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        margin-bottom: 1rem;
+    }
+    .dimensions-header h3 {
+        font-size: 1rem;
+        font-weight: 600;
+        color: #1e293b;
+    }
+    .dimensions-header i {
+        color: #64748b;
+    }
+    .dimensions-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 1rem;
+    }
+    @media (max-width: 600px) {
+        .dimensions-grid {
+            grid-template-columns: repeat(2, 1fr);
+        }
+    }
+    .dimension-item {
+        padding: 1rem;
+        background: #f8fafc;
+        border-radius: 12px;
+        border: 1px solid #e2e8f0;
+        transition: all 0.2s;
+    }
+    .dimension-item:hover {
+        background: #f1f5f9;
+        border-color: #cbd5e1;
+    }
+    .dimension-item.completed {
+        background: #f0f6fc;
+        border-color: #3b82f6;
+    }
+    .dimension-item.completed .dimension-icon {
+        background: #3b82f6;
+        color: #fff;
+    }
+    .dimension-icon {
+        width: 32px;
+        height: 32px;
+        background: #e2e8f0;
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.9rem;
+        color: #64748b;
+        margin-bottom: 0.5rem;
+    }
+    .dimension-name {
+        font-size: 0.85rem;
+        font-weight: 600;
+        color: #1e293b;
+        margin-bottom: 0.25rem;
+    }
+    .dimension-desc {
+        font-size: 0.75rem;
+        color: #64748b;
+        line-height: 1.4;
+    }
+    .dimension-status {
+        font-size: 0.7rem;
+        color: #3b82f6;
+        margin-top: 0.35rem;
+        display: flex;
+        align-items: center;
+        gap: 0.25rem;
+    }
+
+    /* 对话面板 */
+    .chat-panel {
+        background: #fff;
+        border-radius: 16px;
+        border: 1px solid #e2e8f0;
+        padding: 1.5rem;
+        flex: 1;
+        min-height: 500px;
+        /* 高度封顶：面板不再随对话变长，超出后由内部消息区滚动 */
+        max-height: 68vh;
+        display: flex;
+        flex-direction: column;
+    }
+    .chat-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding-bottom: 1rem;
+        border-bottom: 1px solid #f1f5f9;
+    }
+    .chat-title-area h2 {
+        font-size: 1.1rem;
+        font-weight: 600;
+        color: #1e293b;
+    }
+    .chat-title-area p {
+        font-size: 0.8rem;
+        color: #64748b;
+        margin-top: 0.25rem;
+    }
+    .chat-controls {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+    }
+    .progress-bar {
+        width: 120px;
+        height: 8px;
+        background: #e2e8f0;
+        border-radius: 999px;
+        overflow: hidden;
+    }
+    .progress-fill {
+        height: 100%;
+        background: linear-gradient(90deg, #334155, #475569);
+        border-radius: 999px;
+        transition: width 0.3s;
+    }
+    .progress-text {
+        font-size: 0.8rem;
+        color: #64748b;
+    }
+    .skip-btn {
+        padding: 0.5rem 1rem;
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+        font-size: 0.8rem;
+        color: #64748b;
+        cursor: pointer;
+        transition: all 0.2s;
+        white-space: nowrap;
+        flex-shrink: 0;
+    }
+    .skip-btn:hover {
+        background: #f1f5f9;
+        border-color: #cbd5e1;
+    }
+
+    /* 重新生成按钮 */
+    .regenerate-btn {
+        padding: 0.6rem 1.25rem;
+        background: linear-gradient(135deg, #ef4444, #dc2626);
+        color: #fff;
+        border: none;
+        border-radius: 8px;
+        font-size: 0.85rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+        box-shadow: 0 2px 8px rgba(239, 68, 68, 0.3);
+        white-space: nowrap;
+        flex-shrink: 0;
+    }
+    .regenerate-btn:hover {
+        background: linear-gradient(135deg, #dc2626, #b91c1c);
+        box-shadow: 0 4px 12px rgba(239, 68, 68, 0.4);
+        transform: translateY(-1px);
+    }
+    .regenerate-btn:active {
+        transform: translateY(0);
+    }
+
+    .chat-messages {
+        flex: 1;
+        min-height: 0; /* flex 子元素能真正滚动的关键：允许收缩到内容以下 */
+        overflow-y: auto;
+        padding: 1rem 0.25rem 1rem 0;
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+    }
+    .chat-messages::-webkit-scrollbar { width: 6px; }
+    .chat-messages::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 999px; }
+    .chat-messages::-webkit-scrollbar-track { background: transparent; }
+    .message {
+        display: flex;
+        max-width: 80%;
+    }
+    .message.user {
+        justify-content: flex-end;
+        margin-left: auto;
+    }
+    .message.assistant {
+        justify-content: flex-start;
+    }
+    .message-bubble {
+        padding: 1rem 1.25rem;
+        border-radius: 16px;
+        font-size: 0.95rem;
+        line-height: 1.6;
+    }
+    .message.user .message-bubble {
+        background: #334155;
+        color: #fff;
+        border-bottom-right-radius: 4px;
+    }
+    .message.assistant .message-bubble {
+        background: #f1f5f9;
+        color: #1e293b;
+        border-bottom-left-radius: 4px;
+        border: 1px solid #e2e8f0;
+    }
+
+    .loading-area {
+        padding: 1rem;
+        background: #f8fafc;
+        border-radius: 12px;
+        display: none;
+        align-items: center;
+        gap: 0.75rem;
+        margin-top: 0.5rem;
+    }
+    .loading-area.show {
+        display: flex;
+    }
+    .loading-spinner {
+        width: 20px;
+        height: 20px;
+        border: 2px solid #e2e8f0;
+        border-top-color: #334155;
+        border-radius: 50%;
+        animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin {
+        to { transform: rotate(360deg); }
+    }
+    .loading-text {
+        font-size: 0.85rem;
+        color: #64748b;
+    }
+
+    .completed-banner {
+        display: none;
+        padding: 1rem 1.25rem;
+        background: linear-gradient(135deg, #f0f6fc, #dbeafe);
+        border: 1px solid #3b82f6;
+        border-radius: 12px;
+        margin-top: 1rem;
+    }
+    .completed-banner.show {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+    }
+    .completed-icon {
+        width: 32px;
+        height: 32px;
+        background: #3b82f6;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #fff;
+    }
+    .completed-content h4 {
+        font-size: 0.95rem;
+        font-weight: 600;
+        color: #047857;
+    }
+    .completed-content p {
+        font-size: 0.8rem;
+        color: #0e4470;
+        margin-top: 0.25rem;
+    }
+
+    .chat-input-area {
+        display: flex;
+        gap: 0.75rem;
+        padding-top: 1rem;
+        border-top: 1px solid #f1f5f9;
+        margin-top: auto;
+    }
+    .chat-input {
+        flex: 1;
+        padding: 0.85rem 1rem;
+        border: 1px solid #e2e8f0;
+        border-radius: 12px;
+        font-size: 0.95rem;
+        outline: none;
+        transition: all 0.2s;
+    }
+    .chat-input:focus {
+        border-color: #334155;
+        box-shadow: 0 0 0 3px rgba(51, 65, 85, 0.1);
+    }
+    .chat-input:disabled {
+        background: #f8fafc;
+        cursor: not-allowed;
+    }
+    .send-btn {
+        padding: 0.85rem 1.75rem;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: #fff;
+        border: none;
+        border-radius: 12px;
+        font-size: 0.88rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+    }
+    .send-btn:hover {
+        background: linear-gradient(135deg, #12568a 0%, #3b82f6 100%);
+        transform: translateY(-1px);
+        box-shadow: 0 6px 16px rgba(102, 126, 234, 0.4);
+    }
+    .send-btn:disabled {
+        background: #94a3b8;
+        cursor: not-allowed;
+    }
+
+    /* 右侧预览区 */
+    .preview-section {
+        display: flex;
+        flex-direction: column;
+        gap: 1.5rem;
+    }
+
+    /* 画像预览卡片 */
+    .preview-card {
+        background: #fff;
+        border-radius: 16px;
+        border: 1px solid #e2e8f0;
+        padding: 1.5rem;
+    }
+    .preview-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding-bottom: 1rem;
+        border-bottom: 1px solid #f1f5f9;
+    }
+    .preview-header h2 {
+        font-size: 1.1rem;
+        font-weight: 600;
+        color: #1e293b;
+    }
+    .preview-badge {
+        padding: 0.35rem 0.75rem;
+        background: #f8fafc;
+        border-radius: 999px;
+        font-size: 0.75rem;
+        color: #64748b;
+    }
+    .preview-badge.has-data {
+        background: #f0f6fc;
+        color: #047857;
+    }
+
+    .preview-content {
+        padding-top: 1rem;
+    }
+    .preview-group {
+        margin-bottom: 1.25rem;
+    }
+    .preview-group:last-child {
+        margin-bottom: 0;
+    }
+    .preview-group-title {
+        font-size: 0.8rem;
+        font-weight: 600;
+        color: #475569;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        margin-bottom: 0.75rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    .preview-group-title i {
+        font-size: 0.85rem;
+        color: #94a3b8;
+    }
+    .preview-list {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+    /* 知识掌握知识点较多时内部滚动，不撑长预览卡片 */
+    .preview-list-scroll {
+        max-height: 220px;
+        overflow-y: auto;
+        padding-right: 4px;
+    }
+    .preview-list-scroll::-webkit-scrollbar { width: 6px; }
+    .preview-list-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 999px; }
+    .preview-list-scroll::-webkit-scrollbar-track { background: transparent; }
+    .preview-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 0.6rem 0.75rem;
+        background: #f8fafc;
+        border-radius: 8px;
+    }
+    .preview-key {
+        font-size: 0.85rem;
+        color: #64748b;
+    }
+    .preview-value {
+        font-size: 0.85rem;
+        font-weight: 600;
+        color: #1e293b;
+    }
+    .preview-chips {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+    }
+    .preview-chip {
+        padding: 0.4rem 0.75rem;
+        background: #f1f5f9;
+        border-radius: 999px;
+        font-size: 0.8rem;
+        color: #475569;
+    }
+    .preview-chip.active {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: #fff;
+    }
+    .preview-empty {
+        padding: 1rem;
+        text-align: center;
+        color: #94a3b8;
+        font-size: 0.85rem;
+        background: #f8fafc;
+        border-radius: 8px;
+    }
+
+    /* 帮助提示卡片 */
+    .help-card {
+        background: #f0f6fc;
+        border: 1px solid #fcd34d;
+        border-radius: 16px;
+        padding: 1.25rem;
+    }
+    .help-header {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        margin-bottom: 0.75rem;
+    }
+    .help-header i {
+        color: #3b82f6;
+    }
+    .help-header h3 {
+        font-size: 0.95rem;
+        font-weight: 600;
+        color: #92400e;
+    }
+    .help-list {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+    .help-item {
+        display: flex;
+        align-items: flex-start;
+        gap: 0.5rem;
+        font-size: 0.85rem;
+        color: #0c3a5f;
+        line-height: 1.5;
+    }
+    .help-item i {
+        color: #3b82f6;
+        font-size: 0.75rem;
+        margin-top: 0.1rem;
+    }
+
+    /* 快捷回复卡片 */
+    .quick-reply-card {
+        background: #fff;
+        border-radius: 16px;
+        border: 1px solid #e2e8f0;
+        padding: 1.25rem;
+    }
+    .quick-reply-header {
+        font-size: 0.85rem;
+        font-weight: 600;
+        color: #475569;
+        margin-bottom: 0.75rem;
+    }
+    .quick-reply-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 0.5rem;
+    }
+    @media (min-width: 400px) {
+        .quick-reply-grid {
+            grid-template-columns: repeat(4, 1fr);
+        }
+    }
+    .quick-reply-btn {
+        padding: 0.6rem 0.75rem;
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+        font-size: 0.8rem;
+        color: #475569;
+        cursor: pointer;
+        transition: all 0.2s;
+        text-align: left;
+    }
+    .quick-reply-btn:hover {
+        background: #f1f5f9;
+        border-color: #cbd5e1;
+        color: #1e293b;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="profile-builder">
+    <!-- 头部区域 -->
+    <header class="builder-header">
+        <div class="header-content">
+            <h1 class="header-title">学习画像构建</h1>
+            <p class="header-desc">通过自然对话，系统会自动分析你的回答，构建包含知识基础、认知风格、学习目标等六个维度的个性化画像，帮助你获得更精准的学习建议。</p>
+            <div class="header-stats">
+                <div class="header-stat">
+                    <div class="stat-icon"><i class="fas fa-comments"></i></div>
+                    <div class="stat-info">
+                        <span class="stat-number">{{ conversation_history|length }}</span>
+                        <span class="stat-label">对话轮次</span>
+                    </div>
+                </div>
+                <div class="header-stat">
+                    <div class="stat-icon"><i class="fas fa-check-circle"></i></div>
+                    <div class="stat-info">
+                        <span class="stat-number">{{ answered_dimensions|length }}</span>
+                        <span class="stat-label">已完成维度</span>
+                    </div>
+                </div>
+                <div class="header-stat">
+                    <div class="stat-icon"><i class="fas fa-forward"></i></div>
+                    <div class="stat-info">
+                        <span class="stat-number">{{ skipped_dimensions|length }}</span>
+                        <span class="stat-label">已跳过</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- 主内容区 -->
+    <div class="builder-main">
+        <!-- 左侧：对话区 -->
+        <div class="chat-section">
+            <!-- 画像维度说明 -->
+            <div class="dimensions-card">
+                <div class="dimensions-header">
+                    <i class="fas fa-layer-group"></i>
+                    <h3>画像维度说明</h3>
+                </div>
+                <div class="dimensions-grid">
+                    <div class="dimension-item {% if 'knowledge_base' in answered_dimensions %}completed{% endif %}">
+                        <div class="dimension-icon"><i class="fas fa-book"></i></div>
+                        <div class="dimension-name">知识基础</div>
+                        <div class="dimension-desc">已掌握的知识点与程度</div>
+                        {% if 'knowledge_base' in answered_dimensions %}
+                        <div class="dimension-status"><i class="fas fa-check"></i> 已完成</div>
+                        {% endif %}
+                    </div>
+                    <div class="dimension-item {% if 'cognitive_style' in answered_dimensions %}completed{% endif %}">
+                        <div class="dimension-icon"><i class="fas fa-brain"></i></div>
+                        <div class="dimension-name">认知风格</div>
+                        <div class="dimension-desc">视觉/听觉/动手等偏好</div>
+                        {% if 'cognitive_style' in answered_dimensions %}
+                        <div class="dimension-status"><i class="fas fa-check"></i> 已完成</div>
+                        {% endif %}
+                    </div>
+                    <div class="dimension-item {% if 'learning_pace' in answered_dimensions %}completed{% endif %}">
+                        <div class="dimension-icon"><i class="fas fa-clock"></i></div>
+                        <div class="dimension-name">学习节奏</div>
+                        <div class="dimension-desc">快慢节奏与学习习惯</div>
+                        {% if 'learning_pace' in answered_dimensions %}
+                        <div class="dimension-status"><i class="fas fa-check"></i> 已完成</div>
+                        {% endif %}
+                    </div>
+                    <div class="dimension-item {% if 'metacognition' in answered_dimensions %}completed{% endif %}">
+                        <div class="dimension-icon"><i class="fas fa-lightbulb"></i></div>
+                        <div class="dimension-name">元认知</div>
+                        <div class="dimension-desc">自我反思与评估能力</div>
+                        {% if 'metacognition' in answered_dimensions %}
+                        <div class="dimension-status"><i class="fas fa-check"></i> 已完成</div>
+                        {% endif %}
+                    </div>
+                    <div class="dimension-item {% if 'motivation' in answered_dimensions %}completed{% endif %}">
+                        <div class="dimension-icon"><i class="fas fa-fire"></i></div>
+                        <div class="dimension-name">学习动机</div>
+                        <div class="dimension-desc">内在/外在驱动因素</div>
+                        {% if 'motivation' in answered_dimensions %}
+                        <div class="dimension-status"><i class="fas fa-check"></i> 已完成</div>
+                        {% endif %}
+                    </div>
+                    <div class="dimension-item {% if 'error_patterns' in answered_dimensions %}completed{% endif %}">
+                        <div class="dimension-icon"><i class="fas fa-exclamation-triangle"></i></div>
+                        <div class="dimension-name">易错模式</div>
+                        <div class="dimension-desc">常见错误与薄弱点</div>
+                        {% if 'error_patterns' in answered_dimensions %}
+                        <div class="dimension-status"><i class="fas fa-check"></i> 已完成</div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- 对话面板 -->
+            <div class="chat-panel">
+                <div class="chat-header">
+                    <div class="chat-title-area">
+                        <h2>AI 对话引导</h2>
+                        <p>回答问题，系统自动构建你的画像</p>
+                    </div>
+                    <div class="chat-controls">
+                        <div class="progress-bar">
+                            <div class="progress-fill" id="progressFillEl" style="width: {% widthratio answered_dimensions|length 6 100 %}%"></div>
+                        </div>
+                        <span class="progress-text" id="progressTextEl">{{ answered_dimensions|length }}/6 维度</span>
+                        <button id="skipBtn" class="skip-btn">跳过此题</button>
+                        <button id="regenerateBtn" class="regenerate-btn" title="重新开始对话，生成新的画像">
+                            <i class="fas fa-redo"></i> 重新生成画像
+                        </button>
+                    </div>
+                </div>
+
+                <div id="chatContainer" class="chat-messages">
+                    {% for message in conversation_history %}
+                    <div class="message {{ message.role }}">
+                        <div class="message-bubble">{{ message.content }}</div>
+                    </div>
+                    {% endfor %}
+                </div>
+
+                <div id="loadingSpinner" class="loading-area">
+                    <div class="loading-spinner"></div>
+                    <span class="loading-text">AI 正在分析你的回答...</span>
+                </div>
+
+                <div id="completedMessage" class="completed-banner">
+                    <div class="completed-icon"><i class="fas fa-check"></i></div>
+                    <div class="completed-content">
+                        <h4>画像构建完成</h4>
+                        <p>感谢你的配合，系统已生成你的个性化学习画像</p>
+                    </div>
+                </div>
+
+                <div class="chat-input-area">
+                    <input type="text" id="messageInput" class="chat-input" placeholder="输入你的回答，尽量具体详细..." {% if conversation_history|length >= 16 %}disabled{% endif %}>
+                    <button id="sendBtn" class="send-btn" {% if conversation_history|length >= 16 %}disabled{% endif %}>发送</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 右侧：预览区 -->
+        <div class="preview-section">
+            <!-- 画像预览 -->
+            <div class="preview-card">
+                <div class="preview-header">
+                    <h2>实时画像预览</h2>
+                    <span class="preview-badge {% if current_profile_obj %}has-data{% endif %}">
+                        {% if current_profile_obj %}已生成{% else %}构建中{% endif %}
+                    </span>
+                </div>
+                <div class="preview-content">
+                    {% if current_profile_obj %}
+                    <div class="preview-group">
+                        <div class="preview-group-title"><i class="fas fa-book"></i> 知识掌握</div>
+                        {% if knowledge_items %}
+                        <div class="preview-list preview-list-scroll">
+                            {% for k, v in knowledge_items %}
+                            <div class="preview-row">
+                                <span class="preview-key">{{ k }}</span>
+                                <span class="preview-value">{{ v }}</span>
+                            </div>
+                            {% endfor %}
+                        </div>
+                        {% else %}
+                        <div class="preview-empty">暂无知识点数据</div>
+                        {% endif %}
+                    </div>
+
+                    <div class="preview-group">
+                        <div class="preview-group-title"><i class="fas fa-brain"></i> 认知风格</div>
+                        <div class="preview-list">
+                            <div class="preview-row">
+                                <span class="preview-key">风格类型</span>
+                                <span class="preview-value">{{ current_profile_obj.cognitive_style|default:'待分析' }}</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="preview-group">
+                        <div class="preview-group-title"><i class="fas fa-bullseye"></i> 学习目标</div>
+                        {% if learning_goals_list %}
+                        <div class="preview-list">
+                            {% for goal in learning_goals_list %}
+                            <div class="preview-row">
+                                <span class="preview-key">{{ goal.type|default:'目标' }}</span>
+                                <span class="preview-value">{{ goal.description|default:goal }}</span>
+                            </div>
+                            {% endfor %}
+                        </div>
+                        {% else %}
+                        <div class="preview-empty">暂无目标信息</div>
+                        {% endif %}
+                    </div>
+
+                    <div class="preview-group">
+                        <div class="preview-group-title"><i class="fas fa-sliders-h"></i> 学习偏好</div>
+                        <div class="preview-chips">
+                            {% if learning_preferences_items %}
+                            {% for k, v in learning_preferences_items %}
+                            <span class="preview-chip {% if v %}active{% endif %}">{{ k }}</span>
+                            {% endfor %}
+                            {% else %}
+                            <span class="preview-chip">暂无偏好</span>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    {% if misconceptions_list %}
+                    <div class="preview-group">
+                        <div class="preview-group-title"><i class="fas fa-exclamation-triangle"></i> 易错点</div>
+                        <div class="preview-list">
+                            {% for item in misconceptions_list %}
+                            <div class="preview-row">
+                                <span class="preview-key">{{ item.tag|default:item }}</span>
+                                <span class="preview-value">{{ item.wrong_count|default:1 }} 次错误</span>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endif %}
+                    {% else %}
+                    <div class="preview-empty" style="padding: 2rem;">
+                        <i class="fas fa-user-circle" style="font-size: 2rem; color: #cbd5e1; margin-bottom: 0.75rem;"></i>
+                        <p>画像正在构建中</p>
+                        <p style="font-size: 0.75rem; margin-top: 0.5rem;">随着对话进行，这里会逐步显示你的画像数据</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- 帮助提示 -->
+            <div class="help-card">
+                <div class="help-header">
+                    <i class="fas fa-lightbulb"></i>
+                    <h3>回答建议</h3>
+                </div>
+                <div class="help-list">
+                    <div class="help-item">
+                        <i class="fas fa-check"></i>
+                        <span>尽量详细描述，例如"我比较喜欢看视频教程，因为可以暂停反复看"</span>
+                    </div>
+                    <div class="help-item">
+                        <i class="fas fa-check"></i>
+                        <span>可以举例说明，如"我在学习Python时，函数参数这块总是搞混"</span>
+                    </div>
+                    <div class="help-item">
+                        <i class="fas fa-check"></i>
+                        <span>如实回答即可，系统会自动分析并生成画像</span>
+                    </div>
+                    <div class="help-item">
+                        <i class="fas fa-check"></i>
+                        <span>不确定的问题可以跳过，后续可以补充</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 快捷回复 -->
+            <div class="quick-reply-card">
+                <div class="quick-reply-header">快捷回复示例</div>
+                <div class="quick-reply-grid">
+                    <button class="quick-reply-btn" onclick="quickReply('我之前学过一点，算是入门水平')">入门基础</button>
+                    <button class="quick-reply-btn" onclick="quickReply('我有一定基础，想深入学习')">有基础想进阶</button>
+                    <button class="quick-reply-btn" onclick="quickReply('我喜欢看视频教程学习')">喜欢看视频</button>
+                    <button class="quick-reply-btn" onclick="quickReply('我更喜欢动手实践，边做边学')">喜欢动手做</button>
+                    <button class="quick-reply-btn" onclick="quickReply('我每天大概能学1-2小时')">每天1-2小时</button>
+                    <button class="quick-reply-btn" onclick="quickReply('我是为了考试/工作需要')">考试或工作</button>
+                    <button class="quick-reply-btn" onclick="quickReply('我是出于兴趣想学习')">兴趣驱动</button>
+                    <button class="quick-reply-btn" onclick="quickReply('遇到不懂的我会反复看或者上网查')">反复看或上网查</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const messageInput = document.getElementById('messageInput');
+    const sendBtn = document.getElementById('sendBtn');
+    const skipBtn = document.getElementById('skipBtn');
+    const regenerateBtn = document.getElementById('regenerateBtn');
+    const chatContainer = document.getElementById('chatContainer');
+    const loadingSpinner = document.getElementById('loadingSpinner');
+    const completedMessage = document.getElementById('completedMessage');
+    const progressFill = document.querySelector('.progress-fill');
+    const progressText = document.querySelector('.progress-text');
+    let sessionId = {{ session_id }};  // 改为 let，允许重新生成时更新
+    let busy = false;  // 请求/流式进行中锁：防止回车、快捷回复、跳过、重生成并发提交，导致后端轮次错乱
+
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+
+    function addMessage(content, role) {
+        const div = document.createElement('div');
+        div.className = 'message ' + role;
+        const bubble = document.createElement('div');
+        bubble.className = 'message-bubble';
+        bubble.textContent = content;
+        div.appendChild(bubble);
+        chatContainer.appendChild(div);
+        chatContainer.scrollTop = chatContainer.scrollHeight;
+    }
+
+    function updateProgress(completedDims, totalDims) {
+        totalDims = totalDims || 6;
+        completedDims = completedDims || 0;
+        const percentage = Math.min((completedDims / totalDims) * 100, 100);
+        var fill = document.getElementById('progressFillEl') || progressFill;
+        var text = document.getElementById('progressTextEl') || progressText;
+        if (fill) fill.style.width = percentage + '%';
+        if (text) text.textContent = completedDims + '/' + totalDims + ' 维度';
+    }
+
+    function sendMessage(message) {
+        if (!message) {
+            message = messageInput.value.trim();
+        }
+        if (!message) return;
+        if (busy) return;
+        busy = true;
+
+        addMessage(message, 'user');
+        messageInput.value = '';
+        sendBtn.disabled = true;
+        loadingSpinner.classList.add('show');
+
+        fetch('/profile/building/step/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCookie('csrftoken')
+            },
+            body: JSON.stringify({
+                sessionId: sessionId,
+                message: message,
+                action: 'answer'
+            })
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.error) {
+                alert(data.error);
+                busy = false;
+                sendBtn.disabled = false;
+                loadingSpinner.classList.remove('show');
+                return;
+            }
+
+            if (data.completed) {
+                busy = false;
+                completedMessage.classList.add('show');
+                messageInput.disabled = true;
+                sendBtn.disabled = true;
+                loadingSpinner.classList.remove('show');
+                updateProgress(6, 6);
+                return;
+            }
+
+            const es = new EventSource('/profile/building/stream/?sessionId=' + encodeURIComponent(sessionId));
+            let assistantBubble = null;
+
+            es.onmessage = function(e) {
+                if (!assistantBubble) {
+                    const div = document.createElement('div');
+                    div.className = 'message assistant';
+                    div.innerHTML = '<div class="message-bubble"></div>';
+                    chatContainer.appendChild(div);
+                    assistantBubble = div.querySelector('.message-bubble');
+                }
+                assistantBubble.textContent += e.data;
+                chatContainer.scrollTop = chatContainer.scrollHeight;
+            };
+
+            es.addEventListener('meta', function(e) {
+                try {
+                    var meta = JSON.parse(e.data);
+                    updateProgress(meta.completedDimensions || 0, meta.totalDimensions || 6);
+                } catch (err) {}
+            });
+
+            es.addEventListener('completed', function(e) {
+                es.close();
+                busy = false;
+                sendBtn.disabled = false;
+                loadingSpinner.classList.remove('show');
+                completedMessage.classList.add('show');
+                messageInput.disabled = true;
+                sendBtn.disabled = true;
+                updateProgress(6, 6);
+            });
+
+            // 后端在异常时会发具名事件 event: error（带 data），正常回合结束则直接关闭连接（无 data）；
+            // onerror 同时承接这两种情况，用 e.data 区分：有 data=后端报错，需提示；无 data=正常收尾，静默复位。
+            es.onerror = function(e) {
+                es.close();
+                busy = false;
+                sendBtn.disabled = false;
+                loadingSpinner.classList.remove('show');
+                if (e && e.data) {
+                    let msg = '生成失败，请重试';
+                    try { const p = JSON.parse(e.data); msg = p.error || msg; } catch (_) {}
+                    addMessage('⚠️ ' + msg, 'assistant');
+                }
+            };
+        })
+        .catch(err => {
+            console.error(err);
+            alert('发送失败，请重试');
+            busy = false;
+            sendBtn.disabled = false;
+            loadingSpinner.classList.remove('show');
+        });
+    }
+
+    function skipQuestion() {
+        if (busy) return;
+        busy = true;
+        skipBtn.disabled = true;
+        sendBtn.disabled = true;
+        loadingSpinner.classList.add('show');
+
+        fetch('/profile/building/step/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCookie('csrftoken')
+            },
+            body: JSON.stringify({
+                sessionId: sessionId,
+                action: 'skip'
+            })
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.error) {
+                alert(data.error);
+                busy = false;
+                skipBtn.disabled = false;
+                sendBtn.disabled = false;
+                loadingSpinner.classList.remove('show');
+                return;
+            }
+
+            if (data.completed) {
+                busy = false;
+                completedMessage.classList.add('show');
+                messageInput.disabled = true;
+                sendBtn.disabled = true;
+                loadingSpinner.classList.remove('show');
+                updateProgress(6, 6);
+                return;
+            }
+
+            const es = new EventSource('/profile/building/stream/?sessionId=' + encodeURIComponent(sessionId));
+            let assistantBubble = null;
+
+            es.onmessage = function(e) {
+                if (!assistantBubble) {
+                    const div = document.createElement('div');
+                    div.className = 'message assistant';
+                    div.innerHTML = '<div class="message-bubble"></div>';
+                    chatContainer.appendChild(div);
+                    assistantBubble = div.querySelector('.message-bubble');
+                }
+                assistantBubble.textContent += e.data;
+                chatContainer.scrollTop = chatContainer.scrollHeight;
+            };
+
+            es.addEventListener('meta', function(e) {
+                try {
+                    var meta = JSON.parse(e.data);
+                    updateProgress(meta.completedDimensions || 0, meta.totalDimensions || 6);
+                } catch (err) {}
+            });
+
+            es.addEventListener('completed', function(e) {
+                es.close();
+                busy = false;
+                skipBtn.disabled = false;
+                sendBtn.disabled = false;
+                loadingSpinner.classList.remove('show');
+                completedMessage.classList.add('show');
+                messageInput.disabled = true;
+                sendBtn.disabled = true;
+                updateProgress(6, 6);
+            });
+
+            es.onerror = function(e) {
+                es.close();
+                busy = false;
+                skipBtn.disabled = false;
+                sendBtn.disabled = false;
+                loadingSpinner.classList.remove('show');
+                if (e && e.data) {
+                    let msg = '生成失败，请重试';
+                    try { const p = JSON.parse(e.data); msg = p.error || msg; } catch (_) {}
+                    addMessage('⚠️ ' + msg, 'assistant');
+                }
+            };
+        })
+        .catch(err => {
+            console.error(err);
+            busy = false;
+            skipBtn.disabled = false;
+            sendBtn.disabled = false;
+            loadingSpinner.classList.remove('show');
+        });
+    }
+
+    function regenerateProfile() {
+        if (busy) return;
+        if (!confirm('确定要重新生成画像吗？这将会清除当前的对话记录。')) {
+            return;
+        }
+
+        busy = true;
+        sendBtn.disabled = true;
+        regenerateBtn.disabled = true;
+        loadingSpinner.classList.add('show');
+        completedMessage.classList.remove('show');
+        messageInput.disabled = false;
+
+        fetch('/profile/building/regenerate/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCookie('csrftoken')
+            },
+            body: JSON.stringify({
+                sessionId: sessionId
+            })
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.error) {
+                alert(data.error);
+                busy = false;
+                sendBtn.disabled = false;
+                regenerateBtn.disabled = false;
+                loadingSpinner.classList.remove('show');
+                return;
+            }
+
+            // 更新 sessionId
+            sessionId = data.newSessionId;
+
+            // 清空聊天记录
+            chatContainer.innerHTML = '';
+            
+            // 更新进度
+            updateProgress(0);
+
+            // 开始新的对话流
+            const es = new EventSource('/profile/building/stream/?sessionId=' + encodeURIComponent(sessionId));
+            let assistantBubble = null;
+
+            es.onmessage = function(e) {
+                if (!assistantBubble) {
+                    const div = document.createElement('div');
+                    div.className = 'message assistant';
+                    div.innerHTML = '<div class="message-bubble"></div>';
+                    chatContainer.appendChild(div);
+                    assistantBubble = div.querySelector('.message-bubble');
+                }
+                assistantBubble.textContent += e.data;
+                chatContainer.scrollTop = chatContainer.scrollHeight;
+            };
+
+            es.addEventListener('completed', function(e) {
+                es.close();
+                busy = false;
+                sendBtn.disabled = false;
+                regenerateBtn.disabled = false;
+                loadingSpinner.classList.remove('show');
+            });
+
+            es.onerror = function(e) {
+                es.close();
+                busy = false;
+                sendBtn.disabled = false;
+                regenerateBtn.disabled = false;
+                loadingSpinner.classList.remove('show');
+                if (e && e.data) {
+                    let msg = '生成失败，请重试';
+                    try { const p = JSON.parse(e.data); msg = p.error || msg; } catch (_) {}
+                    addMessage('⚠️ ' + msg, 'assistant');
+                }
+            };
+        })
+        .catch(err => {
+            console.error(err);
+            alert('重新生成失败，请重试');
+            busy = false;
+            sendBtn.disabled = false;
+            regenerateBtn.disabled = false;
+            loadingSpinner.classList.remove('show');
+        });
+    }
+
+    // 快捷回复
+    window.quickReply = function(text) {
+        if (!busy && !messageInput.disabled) {
+            sendMessage(text);
+        }
+    };
+
+    sendBtn.addEventListener('click', function() {
+        sendMessage();
+    });
+    messageInput.addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            sendMessage();
+        }
+    });
+    skipBtn.addEventListener('click', skipQuestion);
+    regenerateBtn.addEventListener('click', regenerateProfile);
+});
+</script>
+{% endblock %}

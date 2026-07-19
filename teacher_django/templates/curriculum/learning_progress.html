@@ -1,0 +1,144 @@
+{% extends 'base.html' %}
+
+{% block title %}学习进度 - Tri{% endblock %}
+{% block page_title %}学习进度{% endblock %}
+{% block page_description %}掌握情况与薄弱点{% endblock %}
+
+{% block extra_css %}
+<style>
+    .progress-shell { display: grid; gap: 1.25rem; }
+    .progress-hero, .progress-panel, .progress-card, .progress-empty {
+        border-radius: 24px;
+        border: 1px solid rgba(148, 163, 184, 0.16);
+        background: rgba(255, 255, 255, 0.94);
+        box-shadow: 0 10px 22px rgba(15, 23, 42, 0.05);
+    }
+    .progress-hero { padding: 1.5rem; }
+    .progress-kicker { display: inline-flex; align-items: center; gap: 0.4rem; padding: 0.3rem 0.64rem; border-radius: 999px; background: rgba(18, 86, 138, 0.08); color: #12568a; font-size: 0.72rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; }
+    .progress-title { margin-top: 0.85rem; font-size: clamp(1.6rem, 2.8vw, 2.2rem); line-height: 1.14; font-weight: 800; color: #0f172a; }
+    .progress-copy { margin-top: 0.55rem; max-width: 52rem; font-size: 0.9rem; line-height: 1.6; color: #64748b; }
+    .progress-metrics, .progress-grid, .progress-subgrid, .progress-list { display: grid; gap: 0.9rem; }
+    .progress-metrics { margin-top: 1rem; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .progress-grid { grid-template-columns: minmax(0, 1.2fr) minmax(320px, 0.9fr); }
+    .progress-subgrid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .progress-metric { padding: 0.95rem 1rem; border-radius: 18px; background: #f8fafc; }
+    .progress-metric-label { font-size: 0.7rem; letter-spacing: 0.08em; text-transform: uppercase; color: #64748b; }
+    .progress-metric-value { margin-top: 0.25rem; font-size: 1.45rem; font-weight: 800; color: #0f172a; }
+    .progress-metric-note { margin-top: 0.2rem; font-size: 0.78rem; line-height: 1.5; color: #64748b; }
+    .progress-panel { padding: 1.2rem; }
+    .progress-panel-title { font-size: 1.06rem; font-weight: 800; color: #0f172a; }
+    .progress-panel-copy { margin-top: 0.2rem; font-size: 0.78rem; line-height: 1.55; color: #64748b; }
+    .progress-card { padding: 1rem; }
+    .progress-card-title { font-size: 0.98rem; font-weight: 800; color: #0f172a; }
+    .progress-card-copy { margin-top: 0.35rem; font-size: 0.82rem; line-height: 1.6; color: #475569; }
+    .progress-chip-list, .progress-action-row { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.75rem; }
+    .progress-chip { display: inline-flex; align-items: center; padding: 0.28rem 0.56rem; border-radius: 999px; border: 1px solid rgba(148, 163, 184, 0.18); background: white; font-size: 0.72rem; font-weight: 700; color: #64748b; }
+    .progress-link { display: inline-flex; align-items: center; justify-content: center; border-radius: 999px; padding: 0.5rem 0.9rem; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; font-size: 0.76rem; font-weight: 700; box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3); }
+    .progress-link.secondary { background: #eef2f7; color: #334155; }
+    .progress-empty { padding: 1.2rem; font-size: 0.88rem; line-height: 1.6; color: #64748b; }
+    .progress-bar { height: 0.55rem; border-radius: 999px; background: rgba(148, 163, 184, 0.18); overflow: hidden; }
+    .progress-bar > span { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, #12568a, #334155); }
+    @media (max-width: 1100px) {
+        .progress-metrics, .progress-grid, .progress-subgrid { grid-template-columns: 1fr; }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="progress-shell">
+    <section class="progress-hero">
+        <span class="progress-kicker"><i class="fas fa-chart-line"></i> Learning Progress</span>
+        <h1 class="progress-title">学习进度</h1>
+        <p class="progress-copy">把最近生成的学习路径和章节进度放在一页里，直接看出课程推进到了哪里、下一步该补什么。</p>
+    </section>
+
+    {% if recent_plans %}
+        <section class="progress-panel">
+            <div class="progress-panel-title">最近生成的学习路径</div>
+            <p class="progress-panel-copy">这些路径已经按当前画像、课程资料和最近学习状态做了聚合。</p>
+            <div class="progress-list">
+                {% for plan in recent_plans %}
+                    <article class="progress-card">
+                        <div class="progress-card-title">{{ plan.data.title|default:plan.title }}</div>
+                        {% if plan.data.description %}
+                            <p class="progress-card-copy">{{ plan.data.description }}</p>
+                        {% endif %}
+                        <div class="progress-chip-list">
+                            <span class="progress-chip">状态：{{ plan.status }}</span>
+                            <span class="progress-chip">更新时间：{{ plan.updated_at|date:"Y-m-d H:i" }}</span>
+                        </div>
+                        {% if plan.data.recommendation_reason %}
+                            <div class="progress-chip-list">
+                                {% for reason in plan.data.recommendation_reason %}
+                                    <span class="progress-chip">{{ reason }}</span>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                        {% if plan.data.modules %}
+                            <div class="progress-subgrid" style="margin-top:0.9rem;">
+                                {% for module in plan.data.modules %}
+                                    <div class="progress-card" style="background:#f8fafc;">
+                                        <div class="progress-card-title">{{ module.name }}</div>
+                                        {% if module.estimated_hours %}
+                                            <p class="progress-card-copy">预计 {{ module.estimated_hours }} 小时</p>
+                                        {% endif %}
+                                        {% if module.focus %}
+                                            <p class="progress-card-copy">{{ module.focus }}</p>
+                                        {% endif %}
+                                        {% if module.lessons %}
+                                            <div class="progress-chip-list">
+                                                {% for lesson in module.lessons|slice:":2" %}
+                                                    <span class="progress-chip">{{ lesson.title }}</span>
+                                                {% endfor %}
+                                            </div>
+                                        {% endif %}
+                                    </div>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                        <div class="progress-action-row">
+                            <a href="{% url 'learning_plan_detail' plan.id %}" class="progress-link">查看完整路径</a>
+                        </div>
+                    </article>
+                {% endfor %}
+            </div>
+        </section>
+    {% endif %}
+
+    {% if progress_list %}
+        <section class="progress-panel">
+            <div class="progress-panel-title">章节进度</div>
+            <p class="progress-panel-copy">每条记录都展示当前完成状态、滑动进度和测验表现。</p>
+            <div class="progress-list">
+                {% for progress in progress_list %}
+                    <article class="progress-card">
+                        <div class="progress-card-title">{{ progress.course_outline.title }}</div>
+                        <p class="progress-card-copy">章节：{{ progress.chapter_id }} · {{ progress.get_status_display }}</p>
+                        <div class="progress-bar" aria-hidden="true">
+                            {% if progress.total_slides > 0 %}
+                                {% widthratio progress.completed_slides progress.total_slides 100 as progress_percent %}
+                                <span style="width: {{ progress_percent }}%"></span>
+                            {% else %}
+                                <span style="width: 0%"></span>
+                            {% endif %}
+                        </div>
+                        <div class="progress-chip-list">
+                            <span class="progress-chip">幻灯片 {{ progress.completed_slides }} / {{ progress.total_slides }}</span>
+                            {% if progress.quiz_score > 0 %}<span class="progress-chip">测验 {{ progress.quiz_score|floatformat:1 }}%</span>{% endif %}
+                            <span class="progress-chip">最后访问 {{ progress.last_accessed_at|date:"Y-m-d H:i" }}</span>
+                            {% if progress.completed_at %}<span class="progress-chip">完成 {{ progress.completed_at|date:"Y-m-d H:i" }}</span>{% endif %}
+                        </div>
+                    </article>
+                {% endfor %}
+            </div>
+        </section>
+    {% else %}
+        <section class="progress-empty">
+            <p>您还没有开始任何课程的学习。</p>
+            <div class="progress-action-row">
+                <a href="{% url 'course_generator' %}" class="progress-link">生成您的第一门课程</a>
+            </div>
+        </section>
+    {% endif %}
+</div>
+{% endblock %}

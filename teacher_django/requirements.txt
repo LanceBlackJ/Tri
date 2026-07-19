@@ -1,0 +1,17 @@
+Django>=4.2,<5.0
+websocket-client>=1.6.0
+requests>=2.28.0
+celery>=5.2.0
+redis>=4.5.0
+bcrypt>=4.0.0
+python-pptx>=0.6.21
+pypdf>=4.2.0
+Pillow>=9.0.0
+# MySQL 驱动（仅在 DB_ENGINE=mysql 时需要）。用纯 Python 的 PyMySQL 而非 mysqlclient：
+# conda 版 mysqlclient 的 C 扩展与 MySQL 8 握手会段错误。见 teacher_django/__init__.py 的 shim。
+PyMySQL>=1.1.0
+cryptography>=41.0.0  # PyMySQL 与 MySQL 8 认证/加密所需
+
+# 生产/容器部署
+gunicorn>=21.2.0     # WSGI 服务器（替代 runserver）
+whitenoise>=6.6.0    # 静态文件托管，无需额外 nginx

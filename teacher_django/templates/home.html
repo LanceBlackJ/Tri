@@ -1,0 +1,977 @@
+{% extends 'base.html' %}
+
+{% block page_title %}工作台{% endblock %}
+{% block title %}工作台 - Tri{% endblock %}
+{% block page_description %}今天从这里继续{% endblock %}
+
+{% block extra_css %}
+<style>
+    .dashboard-stage {
+        position: relative;
+        isolation: isolate;
+        padding-bottom: 2rem;
+        background: #f8fafc;
+    }
+
+    .dashboard-stage::before {
+        content: '';
+        position: absolute;
+        inset: -3rem 0 auto;
+        height: 28rem;
+        background:
+            radial-gradient(circle at 15% 20%, rgba(100, 116, 139, 0.1), transparent 35%),
+            radial-gradient(circle at 85% 10%, rgba(148, 163, 184, 0.08), transparent 30%),
+            radial-gradient(circle at 50% 80%, rgba(15, 23, 42, 0.03), transparent 40%);
+        z-index: -1;
+        pointer-events: none;
+    }
+
+    .dashboard-shell {
+        display: flex;
+        flex-direction: column;
+        gap: 1.5rem;
+    }
+
+    @keyframes dashboardFadeUp {
+        from { opacity: 0; transform: translateY(18px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+
+    @keyframes dashboardFloatGlow {
+        0%, 100% { transform: translateY(0); opacity: 0.6; }
+        50% { transform: translateY(-8px); opacity: 0.9; }
+    }
+
+    /* Hero 区域 */
+    .dashboard-hero {
+        position: relative;
+        overflow: hidden;
+        border-radius: 28px;
+        padding: 2.2rem;
+        background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%);
+        color: #ffffff;
+        box-shadow: 0 24px 48px rgba(15, 23, 42, 0.25);
+        animation: dashboardFadeUp 0.55s ease both;
+    }
+
+    .dashboard-hero::after {
+        content: '';
+        position: absolute;
+        inset: auto -10% -40% auto;
+        width: 300px;
+        height: 300px;
+        border-radius: 999px;
+        background: rgba(59, 130, 246, 0.15);
+        filter: blur(20px);
+        animation: dashboardFloatGlow 8s ease-in-out infinite;
+    }
+
+    .dashboard-hero-inner {
+        position: relative;
+        z-index: 1;
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: space-between;
+        gap: 2rem;
+        align-items: center;
+    }
+
+    .dashboard-hero-content {
+        flex: 1;
+        min-width: 300px;
+    }
+
+    .dashboard-kicker {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.45rem 0.9rem;
+        border-radius: 999px;
+        background: rgba(59, 130, 246, 0.2);
+        color: #93c5fd;
+        font-size: 0.72rem;
+        font-weight: 600;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        margin-bottom: 1.1rem;
+    }
+
+    .dashboard-title {
+        font-size: clamp(1.7rem, 4vw, 2.6rem);
+        line-height: 1.12;
+        font-weight: 800;
+        letter-spacing: -0.03em;
+        color: #ffffff;
+        margin-bottom: 0.8rem;
+    }
+
+    .dashboard-subtitle {
+        max-width: 36rem;
+        font-size: 0.95rem;
+        line-height: 1.65;
+        color: #cbd5e1;
+        margin-bottom: 1.6rem;
+    }
+
+    .dashboard-hero-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 1rem;
+    }
+
+    .dashboard-button {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.6rem;
+        padding: 0.9rem 1.3rem;
+        border-radius: 999px;
+        font-size: 0.85rem;
+        font-weight: 700;
+        transition: all 0.25s ease;
+    }
+
+    .dashboard-button:hover {
+        transform: translateY(-2px);
+    }
+
+    .dashboard-button.primary {
+        background: linear-gradient(135deg, #12568a 0%, #12568a 100%);
+        color: #ffffff;
+        box-shadow: 0 10px 25px rgba(18, 86, 138, 0.35);
+    }
+
+    .dashboard-button.primary:hover {
+        background: linear-gradient(135deg, #0e4470 0%, #3b82f6 100%);
+        box-shadow: 0 14px 30px rgba(18, 86, 138, 0.45);
+    }
+
+    .dashboard-button.secondary {
+        background: #ffffff;
+        color: #334155;
+        border: 1.5px solid #e2e8f0;
+        box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08);
+    }
+
+    .dashboard-button.secondary:hover {
+        background: #f8fafc;
+        border-color: #cbd5e1;
+        box-shadow: 0 6px 20px rgba(0, 0, 0, 0.1);
+    }
+
+    .dashboard-metrics-bar {
+        display: flex;
+        gap: 1rem;
+        flex-wrap: wrap;
+    }
+
+    .dashboard-metric-card {
+        flex: 1;
+        min-width: 150px;
+        border-radius: 20px;
+        padding: 1.3rem;
+        background: #ffffff;
+        border: 1px solid #e2e8f0;
+        box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
+    }
+
+    .dashboard-metric-label {
+        font-size: 0.75rem;
+        color: #64748b;
+        text-transform: uppercase;
+        letter-spacing: 0.12em;
+        font-weight: 700;
+    }
+
+    .dashboard-metric-value {
+        margin-top: 0.6rem;
+        font-size: 1.9rem;
+        font-weight: 800;
+        letter-spacing: -0.02em;
+        color: #1e293b;
+    }
+
+    .dashboard-metric-note {
+        margin-top: 0.4rem;
+        font-size: 0.85rem;
+        color: #475569;
+        line-height: 1.5;
+        font-weight: 500;
+    }
+
+    /* 功能模式网格 */
+    .dashboard-modes-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 1.2rem;
+        animation: dashboardFadeUp 0.6s ease both;
+        animation-delay: 0.1s;
+    }
+
+    .dashboard-mode-card {
+        position: relative;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+        gap: 0.8rem;
+        padding: 1.5rem;
+        border-radius: 24px;
+        background: #ffffff;
+        border: 1px solid #e2e8f0;
+        box-shadow: 0 8px 24px rgba(15, 23, 42, 0.05);
+        transition: all 0.25s ease;
+        cursor: pointer;
+    }
+
+    .dashboard-mode-card:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 16px 36px rgba(15, 23, 42, 0.08);
+        border-color: #cbd5e1;
+    }
+
+    .dashboard-mode-icon {
+        width: 3.4rem;
+        height: 3.4rem;
+        border-radius: 20px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.3rem;
+        background: linear-gradient(135deg, #dbeafe, #bfdbfe);
+        color: #1d4ed8;
+    }
+
+    .dashboard-mode-card:nth-child(2) .dashboard-mode-icon {
+        background: linear-gradient(135deg, #f1f5f9, #e2e8f0);
+        color: #475569;
+    }
+
+    .dashboard-mode-card:nth-child(3) .dashboard-mode-icon {
+        background: linear-gradient(135deg, #e8f1fb, #7fb2e6);
+        color: #0e4470;
+    }
+
+    .dashboard-mode-card:nth-child(4) .dashboard-mode-icon {
+        background: linear-gradient(135deg, #f1f5f9, #e2e8f0);
+        color: #475569;
+    }
+
+    .dashboard-mode-title {
+        font-size: 1rem;
+        font-weight: 800;
+        color: #1e293b;
+    }
+
+    .dashboard-mode-desc {
+        font-size: 0.82rem;
+        line-height: 1.55;
+        color: #64748b;
+        flex: 1;
+    }
+
+    .dashboard-mode-arrow {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        font-size: 0.78rem;
+        font-weight: 700;
+        color: #3b82f6;
+        margin-top: auto;
+    }
+
+    /* 主内容区域 */
+    .dashboard-main-grid {
+        display: grid;
+        grid-template-columns: 1fr 360px;
+        gap: 1.5rem;
+        animation: dashboardFadeUp 0.6s ease both;
+        animation-delay: 0.15s;
+    }
+
+    /* 左侧区域 */
+    .dashboard-left-panel {
+        display: flex;
+        flex-direction: column;
+        gap: 1.5rem;
+    }
+
+    /* 右侧边栏 */
+    .dashboard-right-sidebar {
+        display: flex;
+        flex-direction: column;
+        gap: 1.5rem;
+    }
+
+    /* 通用面板样式 */
+    .dashboard-panel {
+        border-radius: 24px;
+        padding: 1.5rem;
+        background: #ffffff;
+        border: 1px solid #e2e8f0;
+        box-shadow: 0 8px 24px rgba(15, 23, 42, 0.04);
+    }
+
+    .dashboard-panel-header {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 1rem;
+        margin-bottom: 1.25rem;
+    }
+
+    .dashboard-panel-header-left {
+        flex: 1;
+    }
+
+    .dashboard-panel-kicker {
+        display: inline-block;
+        margin-bottom: 0.4rem;
+        font-size: 0.72rem;
+        font-weight: 700;
+        color: #0ea5e9;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+    }
+
+    .dashboard-panel-title {
+        font-size: 1.15rem;
+        font-weight: 800;
+        color: #0f172a;
+        letter-spacing: -0.02em;
+    }
+
+    .dashboard-panel-copy {
+        margin-top: 0.25rem;
+        font-size: 0.82rem;
+        color: #64748b;
+        line-height: 1.55;
+    }
+
+    .dashboard-inline-link {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        font-size: 0.78rem;
+        font-weight: 700;
+        color: #0ea5e9;
+        white-space: nowrap;
+    }
+
+    /* 卡片堆叠 */
+    .dashboard-card-stack {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+    }
+
+    /* 学习卡片 */
+    .dashboard-learning-card {
+        border-radius: 20px;
+        padding: 1.3rem;
+        background: #ffffff;
+        border: 1px solid #e2e8f0;
+        box-shadow: 0 4px 16px rgba(15, 23, 42, 0.03);
+        transition: all 0.22s ease;
+    }
+
+    .dashboard-learning-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 10px 24px rgba(15, 23, 42, 0.06);
+        border-color: #cbd5e1;
+    }
+
+    .dashboard-learning-card-top {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 1rem;
+        margin-bottom: 0.85rem;
+    }
+
+    .dashboard-card-title {
+        font-size: 0.95rem;
+        font-weight: 700;
+        color: #1e293b;
+    }
+
+    .dashboard-card-subtitle {
+        margin-top: 0.25rem;
+        font-size: 0.82rem;
+        color: #64748b;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+    }
+
+    .dashboard-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.3rem;
+        padding: 0.35rem 0.7rem;
+        border-radius: 999px;
+        font-size: 0.72rem;
+        font-weight: 700;
+        white-space: nowrap;
+    }
+
+    .dashboard-chip.accent {
+        background: #e0f2fe;
+        color: #0369a1;
+    }
+
+    .dashboard-chip.warm {
+        background: #e8f1fb;
+        color: #0e4470;
+    }
+
+    .dashboard-card-meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.6rem 1.2rem;
+        font-size: 0.76rem;
+        color: #94a3b8;
+        margin-bottom: 0.95rem;
+    }
+
+    .dashboard-card-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.65rem;
+    }
+
+    .dashboard-card-action {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0.6rem 1rem;
+        border-radius: 12px;
+        font-size: 0.75rem;
+        font-weight: 700;
+        background: linear-gradient(135deg, #12568a 0%, #12568a 100%);
+        color: #ffffff;
+        transition: all 0.2s ease;
+        box-shadow: 0 4px 12px rgba(18, 86, 138, 0.3);
+    }
+
+    .dashboard-card-action:hover {
+        background: linear-gradient(135deg, #0e4470 0%, #3b82f6 100%);
+        transform: translateY(-1px);
+        box-shadow: 0 6px 16px rgba(18, 86, 138, 0.4);
+    }
+
+    .dashboard-card-action.soft {
+        background: #f1f5f9;
+        color: #475569;
+        box-shadow: none;
+    }
+
+    .dashboard-card-action.soft:hover {
+        background: #e2e8f0;
+        box-shadow: none;
+    }
+
+    .dashboard-card-action.primary {
+        background: linear-gradient(135deg, #12568a 0%, #12568a 100%);
+        color: #ffffff;
+        box-shadow: 0 4px 12px rgba(18, 86, 138, 0.3);
+    }
+
+    .dashboard-card-action.primary:hover {
+        background: linear-gradient(135deg, #0e4470 0%, #3b82f6 100%);
+        box-shadow: 0 6px 16px rgba(18, 86, 138, 0.4);
+    }
+
+    .dashboard-card-action.ai {
+        background: linear-gradient(135deg, #0ea5e9 0%, #3b82f6 100%);
+        color: #ffffff;
+        box-shadow: 0 4px 12px rgba(14, 165, 233, 0.3);
+    }
+
+    .dashboard-card-action.ai:hover {
+        background: linear-gradient(135deg, #0284c7 0%, #2563eb 100%);
+        box-shadow: 0 6px 16px rgba(14, 165, 233, 0.4);
+    }
+
+    .dashboard-card-action.browse {
+        background: linear-gradient(135deg, #3b82f6 0%, #0e4470 100%);
+        color: #ffffff;
+        box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+    }
+
+    .dashboard-card-action.browse:hover {
+        background: linear-gradient(135deg, #0e4470 0%, #047857 100%);
+        box-shadow: 0 6px 16px rgba(59, 130, 246, 0.4);
+    }
+
+    .dashboard-card-action.edit {
+        background: linear-gradient(135deg, #12568a 0%, #3b82f6 100%);
+        color: #ffffff;
+        box-shadow: 0 4px 12px rgba(18, 86, 138, 0.3);
+    }
+
+    .dashboard-card-action.edit:hover {
+        background: linear-gradient(135deg, #0e4470 0%, #12568a 100%);
+        box-shadow: 0 6px 16px rgba(18, 86, 138, 0.4);
+    }
+
+    .dashboard-card-action.process {
+        background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+        color: #ffffff;
+        box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
+    }
+
+    .dashboard-card-action.process:hover {
+        background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
+        box-shadow: 0 6px 16px rgba(239, 68, 68, 0.4);
+    }
+
+    /* 重点动作卡片 */
+    .dashboard-focus-card {
+        border-radius: 20px;
+        padding: 1.3rem;
+        background: linear-gradient(180deg, #f0f6fc, #ffffff);
+        border: 1px solid #fcd34d;
+        transition: all 0.22s ease;
+    }
+
+    .dashboard-focus-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 10px 24px rgba(127, 178, 230, 0.15);
+    }
+
+    .dashboard-focus-title {
+        font-size: 0.95rem;
+        font-weight: 700;
+        color: #92400e;
+    }
+
+    .dashboard-focus-meta {
+        margin-top: 0.4rem;
+        font-size: 0.76rem;
+        color: #0e4470;
+        line-height: 1.6;
+    }
+
+    /* 课程卡片 */
+    .dashboard-teaching-card {
+        border-radius: 20px;
+        padding: 1.3rem;
+        background: #ffffff;
+        border: 1px solid #e2e8f0;
+        transition: all 0.22s ease;
+    }
+
+    .dashboard-teaching-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 10px 24px rgba(15, 23, 42, 0.06);
+        border-color: #cbd5e1;
+    }
+
+    .dashboard-teaching-card-top {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 1rem;
+        margin-bottom: 0.85rem;
+    }
+
+    /* 今日建议侧边栏 */
+    .dashboard-side-note {
+        border-radius: 20px;
+        padding: 1.3rem;
+        background: linear-gradient(180deg, #f8fafc, #f1f5f9);
+        border: 1px solid #cbd5e1;
+    }
+
+    .dashboard-side-note strong {
+        display: block;
+        font-size: 0.72rem;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        color: #475569;
+        font-weight: 700;
+    }
+
+    .dashboard-side-note p {
+        margin-top: 0.7rem;
+        font-size: 0.85rem;
+        color: #64748b;
+        line-height: 1.65;
+    }
+
+    .dashboard-side-note p strong {
+        text-transform: none;
+        font-size: inherit;
+        letter-spacing: normal;
+        color: #475569;
+    }
+
+    /* 高频入口卡片 */
+    .dashboard-quick-actions {
+        display: flex;
+        flex-direction: column;
+        gap: 0.85rem;
+    }
+
+    .dashboard-quick-action {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        padding: 1rem;
+        border-radius: 18px;
+        background: #ffffff;
+        border: 1px solid #e2e8f0;
+        transition: all 0.2s ease;
+        cursor: pointer;
+    }
+
+    .dashboard-quick-action:hover {
+        background: #f8fafc;
+        border-color: #cbd5e1;
+        transform: translateX(4px);
+    }
+
+    .dashboard-quick-icon {
+        width: 2.5rem;
+        height: 2.5rem;
+        border-radius: 14px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.95rem;
+        background: linear-gradient(135deg, #f1f5f9, #e2e8f0);
+        color: #475569;
+    }
+
+    .dashboard-quick-info {
+        flex: 1;
+    }
+
+    .dashboard-quick-title {
+        font-size: 0.88rem;
+        font-weight: 700;
+        color: #1e293b;
+    }
+
+    .dashboard-quick-desc {
+        margin-top: 0.15rem;
+        font-size: 0.76rem;
+        color: #64748b;
+    }
+
+    .dashboard-quick-arrow {
+        color: #0ea5e9;
+    }
+
+    /* 学习提醒卡片 */
+    .dashboard-insight-card {
+        border-radius: 18px;
+        padding: 1.2rem;
+        background: #ffffff;
+        border: 1px solid #e2e8f0;
+    }
+
+    .dashboard-insight-label {
+        font-size: 0.72rem;
+        color: #94a3b8;
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+        font-weight: 600;
+    }
+
+    .dashboard-insight-value {
+        margin-top: 0.75rem;
+        font-size: 1.4rem;
+        font-weight: 800;
+        color: #1e293b;
+        letter-spacing: -0.02em;
+    }
+
+    .dashboard-insight-note {
+        margin-top: 0.45rem;
+        font-size: 0.78rem;
+        line-height: 1.55;
+        color: #64748b;
+    }
+
+    /* 空状态 */
+    .dashboard-empty {
+        border-radius: 20px;
+        padding: 1.8rem;
+        border: 1px dashed #cbd5e1;
+        background: #f8fafc;
+        color: #94a3b8;
+        text-align: center;
+        line-height: 1.65;
+    }
+
+    /* 响应式设计 */
+    @media (max-width: 1024px) {
+        .dashboard-main-grid {
+            grid-template-columns: 1fr;
+        }
+        
+        .dashboard-right-sidebar {
+            order: -1;
+        }
+    }
+
+    @media (max-width: 640px) {
+        .dashboard-hero {
+            padding: 1.6rem;
+        }
+
+        .dashboard-hero-inner {
+            flex-direction: column;
+            align-items: stretch;
+        }
+
+        .dashboard-metrics-bar {
+            margin-top: 1rem;
+        }
+
+        .dashboard-metric-card {
+            min-width: 120px;
+        }
+
+        .dashboard-panel {
+            padding: 1.2rem;
+        }
+
+        .dashboard-title {
+            font-size: 1.7rem;
+        }
+
+        .dashboard-modes-grid {
+            grid-template-columns: repeat(2, 1fr);
+        }
+
+        .dashboard-mode-card {
+            padding: 1.2rem;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="dashboard-stage">
+<div class="dashboard-shell">
+    <!-- Hero 区域 -->
+    <section class="dashboard-hero">
+        <div class="dashboard-hero-inner">
+            <div class="dashboard-hero-content">
+                <span class="dashboard-kicker"><i class="fas fa-compass"></i> Dashboard</span>
+                <h1 class="dashboard-title">{{ user.username }}，今天想学习什么？</h1>
+                <p class="dashboard-subtitle">工作台帮你收拢学习与建课任务，让你专注于最重要的事情。</p>
+                <div class="dashboard-hero-actions">
+                    <a href="{{ dashboard.hero_primary }}" class="dashboard-button primary">
+                        <i class="fas fa-play-circle"></i> 继续学习
+                    </a>
+                    <a href="{% url 'course_generator' %}" class="dashboard-button secondary">
+                        <i class="fas fa-wand-magic-sparkles"></i> AI生成课件
+                    </a>
+                </div>
+            </div>
+            <div class="dashboard-metrics-bar">
+                <div class="dashboard-metric-card">
+                    <div class="dashboard-metric-label">本周学习</div>
+                    <div class="dashboard-metric-value">{{ dashboard.learning_metrics.weekly_learning_days }} 天</div>
+                    <div class="dashboard-metric-note">{{ dashboard.learning_metrics.weekly_practice_count }} 次练习</div>
+                </div>
+                <div class="dashboard-metric-card">
+                    <div class="dashboard-metric-label">课程数量</div>
+                    <div class="dashboard-metric-value">{{ dashboard.teaching_metrics.total_courses }}</div>
+                    <div class="dashboard-metric-note">{{ dashboard.teaching_metrics.published_courses }} 门已发布</div>
+                </div>
+                <div class="dashboard-metric-card">
+                    <div class="dashboard-metric-label">参与度</div>
+                    <div class="dashboard-metric-value">{% if dashboard.learning_metrics.engagement_score %}{{ dashboard.learning_metrics.engagement_score }}{% else %}--{% endif %}</div>
+                    <div class="dashboard-metric-note">{% if dashboard.has_profile %}画像已建立{% else %}等待补全{% endif %}</div>
+                </div>
+                <div class="dashboard-metric-card">
+                    <div class="dashboard-metric-label">练习正确率</div>
+                    <div class="dashboard-metric-value">{{ dashboard.learning_metrics.weekly_average_score|floatformat:0 }}%</div>
+                    <div class="dashboard-metric-note">基于最近 {{ dashboard.learning_metrics.weekly_practice_count }} 次练习</div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- 功能模式网格 -->
+    <section class="dashboard-modes-grid">
+        <a href="{% url 'course_library' %}" class="dashboard-mode-card">
+            <span class="dashboard-mode-icon"><i class="fas fa-book-open"></i></span>
+            <span class="dashboard-mode-title">学习模式</span>
+            <span class="dashboard-mode-desc">继续课程学习，回看薄弱知识点</span>
+            <span class="dashboard-mode-arrow">进入学习中心 <i class="fas fa-arrow-right"></i></span>
+        </a>
+        <a href="{% url 'teacher_course_library' %}" class="dashboard-mode-card">
+            <span class="dashboard-mode-icon"><i class="fas fa-layer-group"></i></span>
+            <span class="dashboard-mode-title">建课模式</span>
+            <span class="dashboard-mode-desc">管理课程、资料和发布设置</span>
+            <span class="dashboard-mode-arrow">进入课程中心 <i class="fas fa-arrow-right"></i></span>
+        </a>
+        <a href="{% url 'course_generator' %}" class="dashboard-mode-card">
+            <span class="dashboard-mode-icon"><i class="fas fa-wand-magic-sparkles"></i></span>
+            <span class="dashboard-mode-title">AI课件</span>
+            <span class="dashboard-mode-desc">一句话生成PPT和H5动画课件</span>
+            <span class="dashboard-mode-arrow">生成课件 <i class="fas fa-arrow-right"></i></span>
+        </a>
+        <a href="{% url 'chat_interface' %}" class="dashboard-mode-card">
+            <span class="dashboard-mode-icon"><i class="fas fa-robot"></i></span>
+            <span class="dashboard-mode-title">AI协作</span>
+            <span class="dashboard-mode-desc">让AI帮你规划学习顺序</span>
+            <span class="dashboard-mode-arrow">打开助手 <i class="fas fa-arrow-right"></i></span>
+        </a>
+    </section>
+
+    <!-- 主内容区域 -->
+    <section class="dashboard-main-grid">
+        <!-- 左侧区域 -->
+        <div class="dashboard-left-panel">
+            <!-- 继续学习 -->
+            <div class="dashboard-panel">
+                <div class="dashboard-panel-header">
+                    <div class="dashboard-panel-header-left">
+                        <span class="dashboard-panel-kicker">Learning</span>
+                        <div class="dashboard-panel-title">继续学习</div>
+                        <div class="dashboard-panel-copy">最近学习的课程，快速回到学习进度</div>
+                    </div>
+                    <a href="{% url 'course_library' %}" class="dashboard-inline-link">全部课程 <i class="fas fa-arrow-right"></i></a>
+                </div>
+                
+                <div class="dashboard-card-stack">
+                    {% for card in dashboard.recent_learning %}
+                        <article class="dashboard-learning-card">
+                            <div class="dashboard-learning-card-top">
+                                <div>
+                                    <div class="dashboard-card-title">{{ card.course_title }}</div>
+                                    <div class="dashboard-card-subtitle">{{ card.material_title|truncatechars:28 }}</div>
+                                </div>
+                                <span class="dashboard-chip accent">{{ card.difficulty_stage }}</span>
+                            </div>
+                            <div class="dashboard-card-meta">
+                                <span><i class="far fa-clock"></i> {{ card.updated_at|date:"m月d日 H:i" }}</span>
+                                {% if card.score is not None %}<span><i class="fas fa-bullseye"></i> 最近得分 {{ card.score|floatformat:0 }}</span>{% endif %}
+                                {% if card.review_page %}<span><i class="far fa-file-lines"></i> 第 {{ card.review_page }} 页</span>{% endif %}
+                            </div>
+                            <div class="dashboard-card-actions">
+                                <a href="{{ card.study_url }}" class="dashboard-card-action primary">继续学习</a>
+                            </div>
+                        </article>
+                    {% empty %}
+                        <div class="dashboard-empty">
+                            还没有学习记录，从课程中心开始吧！
+                            <div class="dashboard-card-actions" style="margin-top: 1rem; justify-content: center;">
+                                <a href="{% url 'course_library' %}" class="dashboard-card-action browse">浏览课程</a>
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <!-- 课程中心 -->
+            <div class="dashboard-panel">
+                <div class="dashboard-panel-header">
+                    <div class="dashboard-panel-header-left">
+                        <span class="dashboard-panel-kicker">Teaching</span>
+                        <div class="dashboard-panel-title">我的课程</div>
+                        <div class="dashboard-panel-copy">管理和编辑你的课程内容</div>
+                    </div>
+                    <div class="dashboard-card-actions">
+                        <a href="{% url 'teacher_course_library' %}" class="dashboard-card-action soft">全部课程</a>
+                        <a href="{% url 'course_generator' %}" class="dashboard-card-action ai">AI生成</a>
+                    </div>
+                </div>
+                
+                <div class="dashboard-card-stack">
+                    {% if dashboard.teacher_course_cards %}
+                        {% for course in dashboard.teacher_course_cards %}
+                            <article class="dashboard-teaching-card">
+                                <div class="dashboard-teaching-card-top">
+                                    <div>
+                                        <div class="dashboard-card-title">{{ course.title }}</div>
+                                        <div class="dashboard-card-subtitle">{{ course.summary|truncatechars:45 }}</div>
+                                    </div>
+                                    <span class="dashboard-chip warm">{{ course.status }}</span>
+                                </div>
+                                <div class="dashboard-card-meta">
+                                    <span><i class="fas fa-layer-group"></i> {{ course.material_count }} 份资料</span>
+                                    <span><i class="far fa-eye"></i> {{ course.visibility }}</span>
+                                    <span><i class="far fa-clock"></i> {{ course.updated_at|date:"m月d日 H:i" }}</span>
+                                </div>
+                                <div class="dashboard-card-actions">
+                                    <a href="{{ course.detail_url }}" class="dashboard-card-action edit">继续编辑</a>
+                                </div>
+                            </article>
+                        {% endfor %}
+                    {% else %}
+                        <div class="dashboard-empty">
+                            还没有创建课程，让AI帮你生成第一门吧！
+                            <div class="dashboard-card-actions" style="margin-top: 1rem; justify-content: center;">
+                                <a href="{% url 'course_generator' %}" class="dashboard-card-action ai">AI生成课程</a>
+                            </div>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- 右侧边栏 -->
+        <div class="dashboard-right-sidebar">
+            <!-- 今日建议 -->
+            <div class="dashboard-side-note">
+                <strong>今日建议</strong>
+                <p>
+                    {% if dashboard.focus_areas %}
+                        先处理 <strong>{{ dashboard.focus_areas.0.knowledge_tag }}</strong>，连续错题 {{ dashboard.focus_areas.0.consecutive_wrong_count|default:0 }} 次，需要重点复习。
+                    {% else %}
+                        {% if dashboard.has_profile %}
+                            今天适合开始一门新课程，继续保持学习节奏！
+                        {% else %}
+                            建议先完善学习画像，这样推荐会更准确。
+                        {% endif %}
+                    {% endif %}
+                </p>
+                <div class="dashboard-card-actions" style="margin-top: 1rem;">
+                    <a href="{{ dashboard.hero_primary }}" class="dashboard-card-action primary">立刻开始</a>
+                </div>
+            </div>
+
+            <!-- 重点动作 -->
+            <div class="dashboard-panel">
+                <div class="dashboard-panel-header">
+                    <div class="dashboard-panel-header-left">
+                        <span class="dashboard-panel-kicker">Focus</span>
+                        <div class="dashboard-panel-title">重点复习</div>
+                        <div class="dashboard-panel-copy">需要重点关注的薄弱点</div>
+                    </div>
+                    <a href="{% url 'profile_building' %}" class="dashboard-inline-link">调整画像 <i class="fas fa-arrow-right"></i></a>
+                </div>
+                
+                <div class="dashboard-card-stack">
+                    {% for area in dashboard.focus_areas %}
+                        <article class="dashboard-focus-card">
+                            <div class="dashboard-focus-title">{{ area.knowledge_tag }}</div>
+                            <div class="dashboard-focus-meta">
+                                {{ area.course_title }} · {{ area.material_title }}<br>
+                                {% if area.consecutive_wrong_count %}连续错题 {{ area.consecutive_wrong_count }} 次，{% endif %}累计错误 {{ area.wrong_count }} 次
+                            </div>
+                            <div class="dashboard-card-actions">
+                                <a href="{{ area.target_url }}" class="dashboard-card-action process">立刻处理</a>
+                            </div>
+                        </article>
+                    {% empty %}
+                        <div class="dashboard-empty" style="text-align: left;">
+                            暂无需要重点关注的内容，继续保持！
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+
+        </div>
+    </section>
+</div>
+</div>
+{% endblock %}

@@ -1,0 +1,2964 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ outline.title }} - Tri{% endblock %}
+{% block page_title %}课件{% endblock %}
+{% block page_description %}逐页放映与讲解{% endblock %}
+
+{% block content %}
+<div class="w-full max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="flex justify-between items-center mb-6">
+        <h2 class="text-2xl font-bold">{{ outline.title }}</h2>
+        <a href="{% url 'course_generator' %}" class="text-blue-600 hover:text-blue-800 text-sm">
+            ← 返回课程列表
+        </a>
+    </div>
+    
+    <!-- 导出历史：折叠收起，只有存在导出记录时才显示，避免占据页面顶部 -->
+    {% if exports and exports|length > 0 %}
+    <details class="mt-4 bg-white rounded shadow">
+        <summary class="font-semibold px-4 py-3 cursor-pointer select-none">导出历史（{{ exports|length }}）</summary>
+        <div class="p-4 pt-0">
+            <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+                <thead>
+                    <tr class="text-left text-gray-600">
+                        <th class="px-2 py-1">文件</th>
+                        <th class="px-2 py-1">大小(字节)</th>
+                        <th class="px-2 py-1">状态</th>
+                        <th class="px-2 py-1">时间</th>
+                        <th class="px-2 py-1">操作</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for e in exports %}
+                    <tr id="export-row-{{ e.id }}" class="border-t">
+                        <td class="px-2 py-2">
+                            {% if e.status == 'completed' and e.file_path %}
+                                <a class="text-blue-600" href="{% url 'download_export' e.id %}">{{ e.filename|default:'导出文件' }}</a>
+                            {% else %}
+                                <span class="text-slate-500">{{ e.filename|default:'尚未生成文件' }}</span>
+                                {% if e.message %}<div class="text-xs text-red-600 mt-1">{{ e.message|truncatechars:80 }}</div>{% endif %}
+                            {% endif %}
+                        </td>
+                        <td class="px-2 py-2">{{ e.filesize|default:'' }}</td>
+                        <td class="px-2 py-2">{{ e.get_status_display }}</td>
+                        <td class="px-2 py-2">{{ e.created_at }}</td>
+                        <td class="px-2 py-2">
+                            {% if e.status == 'completed' and e.file_path %}
+                                <a class="btn-secondary" href="{% url 'download_export' e.id %}">下载</a>
+                            {% endif %}
+                            <button class="btn-danger delete-export-btn ml-2" data-id="{{ e.id }}">删除</button>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            </div>
+        </div>
+    </details>
+    {% endif %}
+    <div class="card p-6 rounded-lg mb-6">
+        {% if outline.description %}
+            <p class="text-gray-700 mb-4">{{ outline.description }}</p>
+        {% endif %}
+        
+        <div class="flex items-center text-sm text-gray-600 mb-4">
+            <span>预计学习时间: {{ outline.estimated_hours|floatformat:1 }} 小时</span>
+            <span class="mx-4">•</span>
+            <span>状态: <span id="outlineStatus">
+                {% if outline.status == 'completed' %}
+                    <span class="text-green-600">已完成</span>
+                {% elif outline.status == 'generating' %}
+                    <span class="text-orange-600">生成中 (<span id="outlineProgressText">{{ outline.progress|floatformat:0 }}</span>%)</span>
+                {% elif outline.status == 'pending' %}
+                    <span class="text-blue-600">蓝图待确认</span>
+                {% else %}
+                    <span class="text-gray-600">{{ outline.get_status_display }}</span>
+                {% endif %}
+            </span></span>
+        </div>
+        
+        {% if outline.status == 'completed' %}
+            <div class="flex space-x-4">
+                <a href="#outlineStructuredContent" class="btn-primary" onclick="event.preventDefault(); var _t=document.getElementById('outlineStructuredContent'); if(_t) _t.scrollIntoView({behavior:'smooth', block:'start'});">开始学习</a>
+                <button id="exportBtn" data-url="{% url 'export_outline_pptx' outline.id %}" class="btn-secondary">导出 PPTX</button>
+            </div>
+        {% elif outline.status == 'pending' %}
+            <div class="space-y-3">
+                <div class="text-blue-700 bg-blue-50 rounded p-3 text-sm">
+                    课程蓝图已经准备好。系统正在自动生成课程资源...
+                </div>
+            </div>
+        {% elif outline.status == 'generating' %}
+            <div id="outlineLiveArea" class="text-orange-600">
+                课程正在生成中，正在实时更新中...
+            </div>
+        {% else %}
+            <div class="text-red-600">
+                课程生成失败，请重新尝试。
+            </div>
+        {% endif %}
+    </div>
+    
+    <div id="outlineContentContainer" class="bg-white rounded-lg shadow-md p-6">
+        <div id="outlineStructuredContent">
+            <!-- 结构化展示区 -->
+            <div id="outlineStructured" class="space-y-4 text-sm"></div>
+            <!-- 备用的原始 JSON 显示（便于调试） -->
+            <pre id="outlineContentPre" class="bg-gray-50 p-4 rounded text-sm overflow-x-auto" style="display:none;">{% if outline.status == 'completed' %}{{ outline.outline_data|pprint }}{% else %}正在生成中，尚无内容；请稍等...{% endif %}</pre>
+        </div>
+    </div>
+
+{% block extra_js %}
+<!-- 引入第三方库：marked (Markdown)、DOMPurify、html2canvas、highlight.js (代码高亮)、KaTeX (公式)。
+     统一走国内可达镜像（npmmirror / staticfile），避免 cdnjs/jsdelivr 在国内加载失败。 -->
+<link rel="stylesheet" href="https://cdn.staticfile.net/highlight.js/11.8.0/styles/github.min.css">
+<link rel="stylesheet" href="https://registry.npmmirror.com/katex/0.16.11/files/dist/katex.min.css">
+<script src="https://cdn.staticfile.net/marked/9.1.6/marked.min.js"></script>
+<script src="https://cdn.staticfile.net/dompurify/2.4.0/purify.min.js"></script>
+<script src="https://cdn.staticfile.net/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdn.staticfile.net/highlight.js/11.8.0/highlight.min.js"></script>
+<script src="https://registry.npmmirror.com/katex/0.16.11/files/dist/katex.min.js"></script>
+<script src="https://registry.npmmirror.com/katex/0.16.11/files/dist/contrib/auto-render.min.js"></script>
+
+<style>
+/* PPT 播放器 - 居中放大显示 */
+.slide-deck-container { 
+    display: flex; 
+    flex-direction: column; 
+    align-items: center; 
+    justify-content: center; 
+    width: 100%; 
+    max-width: 1400px; 
+    margin: 0 auto; 
+    padding: 20px 0;
+}
+.slide-deck { 
+    position: relative; 
+    border-radius: 16px; 
+    overflow: hidden; 
+    background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%); 
+    padding: 20px; 
+    border: 1px solid rgba(148,163,184,.15); 
+    box-shadow: 0 24px 60px rgba(15,23,42,.18); 
+    width: 100%;
+    max-width: 1200px;
+}
+.slide-deck .deck-bg { position:absolute; inset:0; background-size:cover; background-position:center; filter: blur(12px) saturate(.6) brightness(1.1); transform: scale(1.05); z-index:0; opacity:.12; }
+.slides-wrap { 
+    position: relative; 
+    height: clamp(500px, 58vw, 800px); 
+    z-index:1; 
+    border-radius: 12px;
+    overflow: hidden;
+}
+.slide { 
+    position: absolute; 
+    top: 12px; 
+    left: 12px; 
+    right: 12px; 
+    bottom: 12px; 
+    padding: 2rem; 
+    border-radius: 16px; 
+    background: #ffffff; 
+    box-shadow: 0 20px 45px rgba(2,6,23,0.18); 
+    opacity:0; 
+    transform: translateY(15px) scale(.98); 
+    transition: opacity .5s cubic-bezier(.2,.9,.2,1), transform .5s cubic-bezier(.2,.9,.2,1), box-shadow .35s;
+    pointer-events: none;
+    overflow-y:auto;
+    overflow-x:hidden;
+}
+.slide.active {
+    opacity:1;
+    transform: translateY(0) scale(1);
+    pointer-events:auto;
+    box-shadow: 0 24px 50px rgba(2,6,23,0.22);
+}
+.slide::-webkit-scrollbar { width:6px; }
+.slide::-webkit-scrollbar-track { background:transparent; }
+.slide::-webkit-scrollbar-thumb { background:rgba(18,86,138,.25); border-radius:999px; }
+.slide[data-theme="tech_blue"]::-webkit-scrollbar-thumb { background:rgba(18, 86, 138,.3); }
+.slide[data-theme="chalkboard_dark"]::-webkit-scrollbar-thumb { background:rgba(207, 228, 247,.25); }
+.slide .inner { max-width:100%; height: 100%; }
+.slide.courseware-slide { display:block; padding:0; background:#fefefe; color:#121826; }
+.slide.courseware-slide::before { content:attr(data-page); position:absolute; left:0; top:0; bottom:0; width:85px; background:linear-gradient(180deg, #0c2238 0%, #1a3a5c 100%); color:#f8fafc; display:flex; align-items:flex-start; justify-content:center; padding-top:32px; font-weight:900; font-size:26px; letter-spacing:.03em; }
+.slide.courseware-slide::after { content:""; position:absolute; left:85px; top:0; bottom:0; width:6px; background:linear-gradient(180deg, #3b82f6 0%, #f5a623 100%); }
+.slide.courseware-slide[data-theme="tech_blue"] { background:#f4f8fc; }
+.slide.courseware-slide[data-theme="tech_blue"]::before { background:linear-gradient(180deg, #092b46 0%, #10456b 100%); }
+.slide.courseware-slide[data-theme="tech_blue"]::after { background:linear-gradient(180deg, #0e4470 0%, #12568a 100%); }
+.slide.courseware-slide[data-theme="chalkboard_dark"] { background:#121a17; color:#f0f6fc; }
+.slide.courseware-slide[data-theme="chalkboard_dark"]::before { background:linear-gradient(180deg, #0b120f 0%, #131f1b 100%); }
+.slide.courseware-slide[data-theme="chalkboard_dark"]::after { background:linear-gradient(180deg, #43d69f 0%, #7fb2e6 100%); }
+.courseware-inner { position:relative; z-index:1; height:100%; margin-left:91px; padding:32px 40px 28px; display:flex; flex-direction:column; gap:18px; }
+.courseware-head { display:flex; justify-content:space-between; gap:20px; align-items:flex-start; }
+.courseware-kicker { display:inline-flex; width:max-content; max-width:100%; padding:5px 12px; border-radius:999px; background:#e8f4fc; color:#12568a; font-size:11px; letter-spacing:.08em; text-transform:uppercase; font-weight:900; }
+.courseware-slide[data-theme="chalkboard_dark"] .courseware-kicker { background:rgba(67,214,159,.12); color:#bbf7d0; }
+.courseware-title { margin-top:10px; max-width:800px; font-size:40px; line-height:1.05; font-weight:900; letter-spacing:0; color:#0f172a; }
+.courseware-slide[data-theme="chalkboard_dark"] .courseware-title { color:#f0f6fc; }
+.courseware-layout-tag { border:1px solid rgba(18,86,138,.15); border-radius:999px; padding:7px 14px; font-size:12px; color:#475569; background:rgba(255,255,255,.8); white-space:nowrap; }
+.courseware-slide[data-theme="chalkboard_dark"] .courseware-layout-tag { color:#cfe4f7; background:rgba(255,255,255,.06); border-color:rgba(187,247,208,.15); }
+.courseware-goal { border-left:6px solid #3b82f6; background:#e8f1fb; padding:12px 16px; border-radius:0 6px 6px 0; font-size:14px; line-height:1.5; color:#0c3a5f; }
+.courseware-slide[data-theme="chalkboard_dark"] .courseware-goal { background:rgba(250,204,21,.15); color:#7fb2e6; border-color:#3b82f6; }
+/* 卡片按内容高度排布并整体垂直居中，不再强行拉满整屏（否则一句话的卡片会被撑成巨大空盒子）*/
+.courseware-body { display:grid; gap:20px; min-height:0; flex:1 1 auto; align-content:center; }
+.courseware-body.layout-cover { grid-template-columns:1.3fr .7fr; align-items:stretch; text-align:left; }
+.courseware-body.layout-two_column,
+.courseware-body.layout-comparison { grid-template-columns:repeat(2,minmax(0,1fr)); }
+.courseware-body.layout-process_flow,
+.courseware-body.layout-agenda { grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); align-items:stretch; }
+.courseware-body.layout-concept_map { grid-template-columns:repeat(2,minmax(0,1fr)); align-items:center; }
+.courseware-body.layout-case_study { grid-template-columns:1.3fr .7fr; }
+.courseware-body.layout-summary { grid-template-columns:repeat(3,minmax(0,1fr)); align-items:stretch; }
+.courseware-body.layout-animation_embed { grid-template-columns:repeat(auto-fit,minmax(320px,1fr)); }
+
+/* 封面页专属布局 */
+.courseware-cover-hero { position:relative; display:flex; flex-direction:column; gap:16px; justify-content:center; padding:8px 28px 8px 0; overflow:hidden; z-index:1; }
+.courseware-cover-hero::after { content:"\f19d"; font-family:"Font Awesome 6 Free"; font-weight:900; position:absolute; right:-6px; bottom:-26px; font-size:170px; color:rgba(18,86,138,.06); z-index:0; pointer-events:none; }
+.courseware-cover-intro,
+.courseware-cover-task { position:relative; z-index:1; display:flex; align-items:flex-start; gap:10px; font-size:17px; line-height:1.7; color:#334155; }
+.courseware-cover-intro i,
+.courseware-cover-task i { margin-top:3px; color:#3b82f6; font-size:16px; flex:0 0 auto; }
+.courseware-slide[data-theme="chalkboard_dark"] .courseware-cover-intro,
+.courseware-slide[data-theme="chalkboard_dark"] .courseware-cover-task { color:#dbeafe; }
+.courseware-slide[data-theme="chalkboard_dark"] .courseware-cover-hero::after { color:rgba(207, 228, 247,.05); }
+.courseware-cover-panel { position:relative; border-radius:14px; padding:24px; background:linear-gradient(160deg, #12568a 0%, #1a3a5c 100%); color:#f8fafc; display:flex; flex-direction:column; gap:16px; box-shadow:0 18px 40px rgba(15,23,42,.18); }
+.courseware-cover-panel-title { font-weight:900; font-size:13px; letter-spacing:.08em; text-transform:uppercase; display:flex; align-items:center; gap:8px; color:#bae6fd; }
+.courseware-cover-list { list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:14px; }
+.courseware-cover-list li { display:flex; align-items:flex-start; gap:12px; font-size:14.5px; line-height:1.6; }
+.courseware-cover-num { flex:0 0 auto; width:26px; height:26px; border-radius:999px; background:rgba(255,255,255,.15); display:flex; align-items:center; justify-content:center; font-weight:800; font-size:12px; }
+.courseware-slide[data-theme="tech_blue"] .courseware-cover-panel { background:linear-gradient(160deg, #0e4470 0%, #10456b 100%); }
+.courseware-slide[data-theme="chalkboard_dark"] .courseware-cover-panel { background:linear-gradient(160deg, #123049 0%, #0a1826 100%); box-shadow:none; border:1px solid rgba(207, 228, 247,.15); }
+.courseware-slide[data-theme="chalkboard_dark"] .courseware-cover-panel-title { color:#cfe4f7; }
+.courseware-slide[data-theme="chalkboard_dark"] .courseware-cover-num { background:rgba(207, 228, 247,.12); }
+@keyframes block-in { from { opacity:0; transform:translateY(16px); } to { opacity:1; transform:translateY(0); } }
+.courseware-block { position:relative; border:1px solid rgba(18,86,138,.12); border-radius:10px; background:rgba(255,255,255,.92); padding:20px; box-shadow:0 14px 28px rgba(15,23,42,.06); overflow:hidden; transition: transform .3s ease, box-shadow .3s ease; animation: block-in .5s cubic-bezier(.2,.9,.2,1) both; }
+.courseware-block:hover { transform: translateY(-2px); box-shadow:0 18px 36px rgba(15,23,42,.1); }
+.courseware-block::before { content:""; position:absolute; left:0; top:0; right:0; height:6px; background:#12568a; }
+.courseware-body.layout-process_flow .courseware-block::before,
+.courseware-body.layout-agenda .courseware-block::before { background:linear-gradient(90deg, #3b82f6, #38bdf8); }
+.courseware-body.layout-summary .courseware-block::before,
+.courseware-body.layout-quiz_check .courseware-block::before { background:linear-gradient(90deg, #3b82f6, #3b82f6); }
+.courseware-body.layout-case_study .courseware-block:first-child { background:linear-gradient(135deg, #0c2238 0%, #1a3a5c 100%); color:#f8fafc; }
+.courseware-body.layout-case_study .courseware-block:first-child::before { background:linear-gradient(90deg, #3b82f6, #3b82f6); }
+.courseware-slide[data-theme="chalkboard_dark"] .courseware-block { background:rgba(255,255,255,.05); border-color:rgba(207, 228, 247,.15); box-shadow:none; }
+
+/* 按 kind 区分强调色与图标 */
+.courseware-block[data-kind="concept_node"]::before { background:linear-gradient(90deg, #3b82f6, #7fb2e6); }
+.courseware-block[data-kind="step"]::before { background:linear-gradient(90deg, #3b82f6, #38bdf8); }
+.courseware-block[data-kind="compare_column"]::before { background:linear-gradient(90deg, #12568a, #7fb2e6); }
+.courseware-block[data-kind="code"]::before,
+.courseware-block[data-kind="code_block"]::before { background:linear-gradient(90deg, #1e293b, #475569); }
+.courseware-block[data-kind="animation"]::before,
+.courseware-block[data-kind="animation_embed"]::before { background:linear-gradient(90deg, #12568a, #38bdf8); }
+.courseware-block[data-kind="question"]::before { background:linear-gradient(90deg, #3b82f6, #3b82f6); }
+.courseware-block-label i { margin-right:8px; color:#12568a; }
+.courseware-block[data-kind="concept_node"] .courseware-block-label i { color:#3b82f6; }
+.courseware-block[data-kind="step"] .courseware-block-label i { color:#3b82f6; }
+.courseware-block[data-kind="compare_column"] .courseware-block-label i { color:#12568a; }
+.courseware-block[data-kind="code"] .courseware-block-label i,
+.courseware-block[data-kind="code_block"] .courseware-block-label i { color:#94a3b8; }
+.courseware-block[data-kind="animation"] .courseware-block-label i,
+.courseware-block[data-kind="animation_embed"] .courseware-block-label i { color:#12568a; }
+.courseware-block[data-kind="question"] .courseware-block-label i { color:#3b82f6; }
+.courseware-block[data-kind="bullet_card"] .courseware-block-label i { color:#3b82f6; }
+.courseware-block[data-kind="code"] .courseware-block-label,
+.courseware-block[data-kind="code_block"] .courseware-block-label { color:#e2e8f0; }
+
+/* 分步流程页大号序号水印 */
+.courseware-body.layout-process_flow .courseware-block,
+.courseware-body.layout-agenda .courseware-block { padding-bottom:50px; }
+.courseware-body.layout-process_flow .courseware-block::after,
+.courseware-body.layout-agenda .courseware-block::after { content:attr(data-step); position:absolute; right:10px; bottom:-4px; font-size:60px; font-weight:900; line-height:1; color:rgba(18,86,138,.08); pointer-events:none; }
+.courseware-slide[data-theme="chalkboard_dark"] .courseware-body.layout-process_flow .courseware-block::after,
+.courseware-slide[data-theme="chalkboard_dark"] .courseware-body.layout-agenda .courseware-block::after { color:rgba(207, 228, 247,.08); }
+
+/* “核心要点”卡：横跨整行，承载本页最完整的知识点，避免单薄卡片撑出空页 */
+.courseware-points { grid-column:1 / -1; }
+.courseware-points ul { columns:2; column-gap:32px; }
+.courseware-points li { break-inside:avoid; font-size:15.5px; }
+@media (max-width:900px){ .courseware-points ul { columns:1; } }
+.courseware-block-label { font-weight:900; font-size:17px; margin-bottom:10px; color:#0f172a; }
+.courseware-slide[data-theme="chalkboard_dark"] .courseware-block-label,
+.courseware-body.layout-case_study .courseware-block:first-child .courseware-block-label { color:#f0f6fc; }
+.courseware-block-text,
+.courseware-notes { font-size:15px; line-height:1.6; color:#475569; }
+.courseware-slide[data-theme="chalkboard_dark"] .courseware-block-text,
+.courseware-slide[data-theme="chalkboard_dark"] .courseware-notes { color:#dbeafe; }
+.courseware-block ul { margin:10px 0 0 0; padding:0; list-style:none; font-size:15px; line-height:1.6; color:#475569; }
+.courseware-block li { position:relative; padding-left:22px; margin-top:8px; }
+.courseware-block li::before { content:""; position:absolute; left:0; top:.65em; width:8px; height:8px; border-radius:999px; background:#3b82f6; }
+.courseware-slide[data-theme="chalkboard_dark"] .courseware-block ul { color:#dbeafe; }
+.courseware-notes { border-top:1px dashed rgba(83,96,117,.25); padding-top:12px; margin-top:auto; font-style: italic; white-space: pre-wrap; word-break: break-word; font-size: 13px; line-height: 1.7; }
+.courseware-goal i { margin-right:8px; color:#3b82f6; }
+.courseware-interaction { display:inline-flex; align-items:center; gap:8px; border-radius:999px; padding:10px 14px; background:#dbeafe; color:#0c3a5f; font-size:13px; font-weight:800; width:max-content; max-width:100%; }
+.courseware-slide[data-theme="chalkboard_dark"] .courseware-interaction { background:rgba(207, 228, 247,.1); color:#cfe4f7; }
+.courseware-interaction i { margin-right:6px; }
+.courseware-cover-hero,
+.courseware-cover-panel { animation: block-in .6s cubic-bezier(.2,.9,.2,1) both; }
+.courseware-cover-panel { animation-delay: .08s; }
+.slide-nav { margin-top: 1rem; display:flex; gap:.75rem; align-items:center; position:relative; z-index:2; justify-content: center; }
+.slide-counter { font-size: 1rem; color: #334155; font-weight: 600; }
+.slide-deck:fullscreen,
+.slide-deck.is-fullscreen { width:100vw; height:100vh; border-radius:0; padding:24px 32px; background:#0f172a; display:flex; flex-direction:column; gap:16px; }
+.slide-deck:fullscreen .deck-bg,
+.slide-deck.is-fullscreen .deck-bg { filter: blur(12px) saturate(1) brightness(.65); transform:scale(1.05); }
+.slide-deck:fullscreen .slides-wrap,
+.slide-deck.is-fullscreen .slides-wrap { flex:1 1 auto; height:auto; min-height:0; }
+.slide-deck:fullscreen .slide,
+.slide-deck.is-fullscreen .slide { top:0; left:50%; right:auto; bottom:0; width:min(100%, calc((100vh - 180px) * 16 / 9)); max-width:calc(100vw - 64px); transform:translateX(-50%) translateY(15px) scale(.98); border-radius:16px; padding:2.5rem; overflow-y:auto; overflow-x:hidden; }
+.slide-deck:fullscreen .slide.active,
+.slide-deck.is-fullscreen .slide.active { transform:translateX(-50%) translateY(0) scale(1); }
+.slide-deck:fullscreen .toolbar-right,
+.slide-deck.is-fullscreen .toolbar-right { margin-left:auto; }
+.slide-deck:fullscreen .slide-nav,
+.slide-deck.is-fullscreen .slide-nav { position:relative; z-index:2; margin-top:0; }
+.slide-deck:fullscreen .slide-counter,
+.slide-deck.is-fullscreen .slide-counter { color:#e2e8f0; }
+.slide-deck:fullscreen .thumbs,
+.slide-deck.is-fullscreen .thumbs { max-height:85px; position:relative; z-index:2; }
+.slide-deck:fullscreen .toolbar-right,
+.slide-deck:fullscreen > .flex,
+.slide-deck.is-fullscreen .toolbar-right,
+.slide-deck.is-fullscreen > .flex { position:relative; z-index:2; }
+.slide-deck:fullscreen .btn-primary,
+.slide-deck:fullscreen .btn-secondary,
+.slide-deck.is-fullscreen .btn-primary,
+.slide-deck.is-fullscreen .btn-secondary { border-color:rgba(255,255,255,.2); box-shadow:none; }
+.slide-deck:fullscreen .courseware-title,
+.slide-deck.is-fullscreen .courseware-title { font-size:clamp(34px, 3.5vw, 52px); }
+.slide-deck:fullscreen .courseware-block-label,
+.slide-deck.is-fullscreen .courseware-block-label { font-size:clamp(16px, 1.4vw, 22px); }
+.slide-deck:fullscreen .courseware-block-text,
+.slide-deck:fullscreen .courseware-block li,
+.slide-deck.is-fullscreen .courseware-block-text,
+.slide-deck.is-fullscreen .courseware-block li { font-size:clamp(15px, 1.3vw, 20px); }
+.doc-content img{ max-width:100%; height:auto }
+.btn-inline { display:inline-flex; align-items:center; gap:.5rem }
+
+.slide-progress { height:6px; background:rgba(226,232,240,0.15); border-radius:999px; overflow:hidden; margin-top:12px; position:relative; z-index:2; }
+.slide-progress .progress-fill { height:100%; width:0%; background:linear-gradient(90deg,#3b82f6,#3b82f6,#12568a); transition: width .45s ease; }
+.thumbs { display:flex; gap:12px; margin-top:16px; overflow-x:auto; padding:4px 0 10px; position:relative; z-index:2; justify-content: center; }
+.thumb { flex:0 0 auto; width:52px; height:42px; border-radius:8px; background:#f1f5f9; box-shadow:0 8px 20px rgba(2,6,23,0.1); padding:0; font-size:13px; color:#1e293b; cursor:pointer; border:2px solid #e2e8f0; border-bottom-width:4px; background-size:cover; background-position:center; transition:transform .25s ease,border-color .25s ease,box-shadow .25s ease; display:inline-flex; align-items:center; justify-content:center; }
+.thumb[data-theme="academic_light"] { border-bottom-color:#12568a; }
+.thumb[data-theme="tech_blue"] { border-bottom-color:#12568a; }
+.thumb[data-theme="chalkboard_dark"] { border-bottom-color:#43d69f; }
+.thumb.active { border-color:#3b82f6; transform:translateY(-5px); box-shadow:0 12px 24px rgba(2,6,23,0.22); }
+.thumb .tindex { font-weight:900; color:#12568a; margin:0; }
+.thumb .ttext { display:none; }
+.toolbar-right { margin-left:auto; display:flex; gap:10px; align-items:center; }
+.speed-select { padding:.3rem .6rem; border-radius:8px; border:1px solid #e2e8f0; background:#fff; font-size:13px; }
+.slide-deck > .flex { position:relative; z-index:2; padding:4px 0 12px; display:flex; justify-content: center; }
+.slide-deck > .flex .btn-secondary,
+.slide-deck > .flex .btn-primary,
+.slide-nav .btn-secondary,
+.slide-nav .btn-primary { border-radius:999px; padding:.55rem 1.1rem; font-size:14px; font-weight:600; }
+.slide-deck > .flex .btn-secondary,
+.slide-nav .btn-secondary { background:#ffffff; color:#1e293b; border:1px solid #cbd5e1; }
+.slide-deck > .flex .btn-secondary:hover,
+.slide-nav .btn-secondary:hover { background:#f8fafc; border-color:#94a3b8; }
+.slide-deck > .flex .btn-primary,
+.slide-nav .btn-primary { background:linear-gradient(135deg, #12568a 0%, #12568a 100%); color:#ffffff; border:1px solid #12568a; box-shadow: 0 4px 14px rgba(18, 86, 138, 0.35); }
+.slide-deck > .flex .btn-primary:hover,
+.slide-nav .btn-primary:hover { background:linear-gradient(135deg, #0e4470 0%, #3b82f6 100%); transform: translateY(-2px); box-shadow: 0 6px 20px rgba(18, 86, 138, 0.45); }
+.animation-list { display:grid; gap:16px; }
+.animation-player { border:1px solid #e2e8f0; border-radius:12px; overflow:hidden; background:#fff; box-shadow:0 8px 20px rgba(2,6,23,0.08); }
+.animation-player header { display:flex; justify-content:space-between; gap:14px; align-items:center; padding:14px 16px; border-bottom:1px solid #e2e8f0; background:#f8fafc; }
+.animation-player iframe { display:block; width:100%; height:350px; border:0; background:#fff; }
+.animation-player .note { padding:12px 16px; font-size:14px; color:#64748b; }
+
+/* 代码高亮样式 */
+.courseware-code-block {
+    background: #1e293b;
+    border-radius: 8px;
+    padding: 16px;
+    overflow-x: auto;
+    font-family: 'Fira Code', 'Monaco', 'Consolas', monospace;
+    font-size: 13px;
+    line-height: 1.6;
+    color: #e2e8f0;
+}
+.courseware-code-block pre {
+    margin: 0;
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+/* github.min.css sets .hljs { background: #fff; color: #24292e } — override both */
+.courseware-code-block code,
+.courseware-code-block code.hljs {
+    background: transparent !important;
+    color: #e2e8f0 !important;
+}
+.courseware-code-block .hljs-keyword { color: #c4b5fd !important; }
+.courseware-code-block .hljs-string,
+.courseware-code-block .hljs-attr { color: #cfe4f7 !important; }
+.courseware-code-block .hljs-number,
+.courseware-code-block .hljs-literal { color: #fcd34d !important; }
+.courseware-code-block .hljs-comment { color: #94a3b8 !important; font-style: italic; }
+.courseware-code-block .hljs-function,
+.courseware-code-block .hljs-title { color: #a5b4fc !important; }
+.courseware-code-block .hljs-variable,
+.courseware-code-block .hljs-name { color: #c2dbf2 !important; }
+.courseware-code-block .hljs-params { color: #cbd5e1 !important; }
+.courseware-code-block .hljs-built_in,
+.courseware-code-block .hljs-type { color: #67e8f9 !important; }
+.courseware-code-block .hljs-operator,
+.courseware-code-block .hljs-punctuation { color: #e2e8f0 !important; }
+.courseware-code-block .hljs-meta { color: #f9a8d4 !important; }
+.courseware-code-block .hljs-deletion { color: #fca5a5 !important; }
+.courseware-code-block .hljs-addition { color: #cfe4f7 !important; }
+
+/* 动画嵌入样式 */
+.courseware-animation-container {
+    width: 100%;
+    height: clamp(200px, 32vh, 300px);
+    border-radius: 8px;
+    overflow: hidden;
+    border: 1px solid #e2e8f0;
+    background: #ffffff;
+}
+.courseware-animation-container iframe {
+    width: 100%;
+    height: 100%;
+    border: 0;
+}
+
+/* Quiz题目样式 */
+.courseware-quiz-block {
+    background: linear-gradient(135deg, #e8f1fb 0%, #7fb2e6 100%);
+    border: 2px solid #3b82f6;
+    padding: 20px;
+}
+.courseware-quiz-block::before {
+    background: linear-gradient(90deg, #3b82f6, #7fb2e6);
+}
+.quiz-question-text {
+    font-size: 16px;
+    font-weight: 600;
+    color: #0c3a5f;
+    margin: 12px 0;
+    line-height: 1.6;
+}
+.quiz-options {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin: 16px 0;
+}
+.quiz-option {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 14px;
+    background: rgba(255, 255, 255, 0.7);
+    border-radius: 8px;
+    border: 2px solid transparent;
+    transition: all 0.2s ease;
+    cursor: pointer;
+}
+.quiz-option:hover {
+    background: rgba(255, 255, 255, 0.9);
+    border-color: #3b82f6;
+}
+.quiz-option.selected {
+    background: rgba(59, 130, 246, 0.2);
+    border-color: #3b82f6;
+}
+.quiz-option.correct {
+    background: rgba(59, 130, 246, 0.2);
+    border-color: #3b82f6;
+}
+.quiz-option.incorrect {
+    background: rgba(239, 68, 68, 0.2);
+    border-color: #ef4444;
+}
+.quiz-radio {
+    width: 18px;
+    height: 18px;
+    cursor: pointer;
+}
+.quiz-option-label {
+    font-size: 15px;
+    color: #1e293b;
+    cursor: pointer;
+    flex: 1;
+}
+.quiz-answer-container {
+    margin-top: 16px;
+    padding: 14px;
+    background: rgba(255, 255, 255, 0.8);
+    border-radius: 8px;
+    border-left: 4px solid #3b82f6;
+}
+.quiz-correct-answer {
+    font-size: 15px;
+    font-weight: 600;
+    color: #15803d;
+    margin-bottom: 8px;
+}
+.quiz-explanation {
+    font-size: 14px;
+    color: #475569;
+    line-height: 1.6;
+}
+.quiz-submit-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 24px;
+    background: linear-gradient(135deg, #3b82f6 0%, #7fb2e6 100%);
+    color: white;
+    border: none;
+    border-radius: 999px;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+}
+.quiz-submit-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(59, 130, 246, 0.4);
+}
+.quiz-submit-btn:disabled {
+    background: #cbd5e1;
+    cursor: not-allowed;
+    box-shadow: none;
+}
+.quiz-result-banner {
+    padding: 16px;
+    border-radius: 12px;
+    margin: 16px 0;
+    font-size: 16px;
+    font-weight: 600;
+}
+.quiz-result-banner.excellent {
+    background: linear-gradient(135deg, #dbeafe 0%, #bbf7d0 100%);
+    color: #15803d;
+    border: 2px solid #3b82f6;
+}
+.quiz-result-banner.good {
+    background: linear-gradient(135deg, #e8f1fb 0%, #7fb2e6 100%);
+    color: #0c3a5f;
+    border: 2px solid #3b82f6;
+}
+.quiz-result-banner.need-improve {
+    background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
+    color: #991b1b;
+    border: 2px solid #ef4444;
+}
+
+/* ============ 讲台舞台：幻灯片 + 老师讲解在旁 ============ */
+.deck-stage { position:relative; display:flex; gap:16px; align-items:stretch; z-index:1; }
+.deck-stage .slides-wrap { flex:1 1 auto; min-width:0; }
+.presenter-panel {
+    flex:0 0 340px; width:340px; align-self:stretch;
+    border-radius:14px; overflow:hidden;
+    background:linear-gradient(170deg,#0c2238 0%,#122f4c 100%);
+    color:#e2e8f0; box-shadow:0 18px 40px rgba(15,23,42,.22);
+    display:flex; flex-direction:column;
+    max-height:clamp(500px,58vw,800px);
+}
+.presenter-panel.collapsed { display:none; }
+.presenter-head { display:flex; align-items:center; gap:8px; padding:14px 18px; font-weight:900; font-size:14px; letter-spacing:.04em; border-bottom:1px solid rgba(148,163,184,.18); background:rgba(255,255,255,.04); }
+.presenter-head i { color:#f5a623; }
+.presenter-body { padding:16px 18px; overflow-y:auto; display:flex; flex-direction:column; gap:16px; }
+.presenter-body::-webkit-scrollbar { width:6px; }
+.presenter-body::-webkit-scrollbar-thumb { background:rgba(148,163,184,.35); border-radius:999px; }
+.presenter-sec-label { display:inline-flex; align-items:center; gap:7px; font-size:11px; font-weight:800; letter-spacing:.08em; text-transform:uppercase; color:#7dd3fc; margin-bottom:7px; }
+.presenter-sec-label i { color:#7dd3fc; }
+.presenter-notes { font-size:15px; line-height:1.85; color:#f1f5f9; white-space:pre-wrap; word-break:break-word; }
+.presenter-sec.action .presenter-sec-label { color:#fcd34d; } .presenter-sec.action .presenter-sec-label i { color:#fcd34d; }
+.presenter-sec.goal .presenter-sec-label { color:#fca5a5; } .presenter-sec.goal .presenter-sec-label i { color:#fca5a5; }
+.presenter-sec.inter .presenter-sec-label { color:#6ee7b7; } .presenter-sec.inter .presenter-sec-label i { color:#6ee7b7; }
+.presenter-sec-text { font-size:13.5px; line-height:1.7; color:#cbd5e1; }
+.presenter-empty { font-size:13px; color:#94a3b8; font-style:italic; }
+.presenter-toggle.on { background:#0c2238 !important; color:#fff !important; border-color:#0c2238 !important; }
+
+/* ============ 独立动画演示舞台 ============ */
+.courseware-body.layout-animation_embed { display:block; }
+.anim-stage { position:relative; width:100%; height:100%; min-height:0; display:flex; flex-direction:column; gap:12px; }
+.anim-stage-frame { position:relative; flex:1 1 auto; min-height:320px; border-radius:14px; overflow:hidden; border:1px solid rgba(18, 86, 138,.25); background:linear-gradient(135deg,#0b1f33,#12345a); box-shadow:inset 0 0 60px rgba(0,0,0,.25); }
+.anim-stage-frame iframe { width:100%; height:100%; border:0; display:block; background:#fff; }
+.anim-stage-replay { position:absolute; top:12px; right:12px; z-index:3; display:inline-flex; align-items:center; gap:6px; padding:8px 14px; border:0; border-radius:999px; background:rgba(12,34,56,.82); color:#fff; font-size:13px; font-weight:700; cursor:pointer; backdrop-filter:blur(4px); box-shadow:0 6px 16px rgba(0,0,0,.25); }
+.anim-stage-replay:hover { background:#12568a; }
+.anim-stage-note { display:flex; align-items:flex-start; gap:10px; padding:14px 18px; border-radius:12px; background:rgba(18, 86, 138,.1); border:1px solid rgba(18, 86, 138,.2); font-size:15px; line-height:1.7; color:#0b4a63; }
+.anim-stage-note i { color:#12568a; margin-top:3px; flex:0 0 auto; }
+.courseware-slide[data-theme="chalkboard_dark"] .anim-stage-note { background:rgba(127, 178, 230,.08); color:#cfe4f7; border-color:rgba(127, 178, 230,.2); }
+
+/* ============ 单题自测：题干大、选项松，居中不拥挤 ============ */
+.courseware-body.layout-quiz_check { display:flex; align-items:center; justify-content:center; }
+.courseware-body.layout-quiz_check .courseware-quiz-block { width:100%; max-width:760px; margin:0 auto; padding:28px 32px; border-radius:16px; }
+.courseware-body.layout-quiz_check .quiz-question-text { font-size:21px; line-height:1.6; margin:6px 0 20px; }
+.courseware-body.layout-quiz_check .quiz-option { padding:14px 18px; font-size:16px; }
+.courseware-body.layout-quiz_check .quiz-option-label { font-size:16px; }
+.slide-deck.is-fullscreen .courseware-body.layout-quiz_check .quiz-question-text { font-size:clamp(20px,1.8vw,28px); }
+.slide-deck.is-fullscreen .courseware-body.layout-quiz_check .quiz-option-label { font-size:clamp(16px,1.4vw,22px); }
+
+/* ============ 播放中与 AI 对话（浮层，全屏也可见）============ */
+.ai-dock { position:absolute; right:18px; bottom:70px; width:min(380px,86vw); max-height:min(62vh,560px); z-index:48; display:none; flex-direction:column; border-radius:16px; overflow:hidden; background:#fff; border:1px solid rgba(148,163,184,.25); box-shadow:0 26px 60px rgba(15,23,42,.32); }
+.ai-dock.open { display:flex; }
+.ai-dock-head { display:flex; align-items:center; gap:9px; padding:13px 16px; background:linear-gradient(135deg,#12568a,#0c2238); color:#fff; font-weight:800; font-size:14px; }
+.ai-dock-head .ctx { margin-left:auto; font-size:11px; font-weight:600; opacity:.75; max-width:150px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.ai-dock-head .ai-close { background:transparent; border:0; color:#fff; cursor:pointer; font-size:16px; opacity:.85; }
+.ai-dock-body { flex:1 1 auto; overflow-y:auto; padding:14px; display:flex; flex-direction:column; gap:10px; background:#f8fafc; }
+.ai-dock-body::-webkit-scrollbar { width:6px; } .ai-dock-body::-webkit-scrollbar-thumb { background:rgba(148,163,184,.4); border-radius:999px; }
+.ai-msg { max-width:88%; padding:10px 13px; border-radius:12px; font-size:14px; line-height:1.65; word-break:break-word; }
+.ai-msg.user { align-self:flex-end; background:linear-gradient(135deg,#12568a,#1a3a5c); color:#fff; border-bottom-right-radius:4px; }
+.ai-msg.bot { align-self:flex-start; background:#fff; color:#1e293b; border:1px solid #e2e8f0; border-bottom-left-radius:4px; }
+.ai-msg.bot.thinking { color:#94a3b8; font-style:italic; }
+.ai-dock-hint { font-size:12px; color:#94a3b8; text-align:center; padding:6px 0; }
+.ai-dock-foot { display:flex; gap:8px; padding:12px; border-top:1px solid #e2e8f0; background:#fff; }
+.ai-dock-foot textarea { flex:1 1 auto; resize:none; height:42px; max-height:110px; padding:10px 12px; border:1px solid #cbd5e1; border-radius:10px; font-size:14px; font-family:inherit; outline:none; }
+.ai-dock-foot textarea:focus { border-color:#12568a; box-shadow:0 0 0 3px rgba(18,86,138,.12); }
+.ai-dock-foot button { flex:0 0 auto; padding:0 16px; border:0; border-radius:10px; background:linear-gradient(135deg,#12568a,#12568a); color:#fff; font-weight:700; cursor:pointer; }
+.ai-dock-foot button:disabled { background:#cbd5e1; cursor:not-allowed; }
+.ai-fab { position:absolute; right:18px; bottom:16px; z-index:47; display:inline-flex; align-items:center; gap:8px; padding:11px 18px; border:0; border-radius:999px; background:linear-gradient(135deg,#12568a,#12568a); color:#fff; font-weight:800; font-size:14px; cursor:pointer; box-shadow:0 12px 28px rgba(18, 86, 138,.4); }
+.slide-deck.is-fullscreen .ai-fab, .slide-deck:fullscreen .ai-fab { bottom:22px; right:24px; }
+.slide-deck.is-fullscreen .ai-dock, .slide-deck:fullscreen .ai-dock { bottom:80px; right:24px; }
+.ai-fab:hover { transform:translateY(-2px); }
+.ai-fab i { font-size:15px; }
+
+/* ============ 全屏开场：一键放映 ============ */
+.deck-start-overlay { position:absolute; inset:0; z-index:50; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:18px; background:linear-gradient(160deg,rgba(12,34,56,.92),rgba(18,47,76,.92)); backdrop-filter:blur(3px); border-radius:16px; text-align:center; color:#fff; }
+.deck-start-overlay.hidden { display:none; }
+.deck-start-overlay .ds-title { font-size:26px; font-weight:900; letter-spacing:.02em; }
+.deck-start-overlay .ds-sub { font-size:14px; color:#cbd5e1; max-width:420px; line-height:1.7; }
+.deck-start-overlay .ds-play { display:inline-flex; align-items:center; gap:12px; padding:16px 34px; border:0; border-radius:999px; background:linear-gradient(135deg,#3b82f6,#f5a623); color:#0c2238; font-size:18px; font-weight:900; cursor:pointer; box-shadow:0 16px 36px rgba(59, 130, 246,.4); transition:transform .2s; }
+.deck-start-overlay .ds-play:hover { transform:scale(1.05); }
+.deck-start-overlay .ds-secondary { display:flex; gap:14px; }
+.deck-start-overlay .ds-secondary button { background:transparent; border:1px solid rgba(255,255,255,.35); color:#e2e8f0; padding:9px 18px; border-radius:999px; font-size:13px; cursor:pointer; }
+.deck-start-overlay .ds-secondary button:hover { background:rgba(255,255,255,.1); }
+.deck-start-overlay .ds-hint { font-size:12px; color:#94a3b8; }
+
+/* 全屏下的舞台与讲解面板 */
+.slide-deck.is-fullscreen .deck-stage,
+.slide-deck:fullscreen .deck-stage { flex:1 1 auto; min-height:0; }
+.slide-deck.is-fullscreen .presenter-panel,
+.slide-deck:fullscreen .presenter-panel { max-height:none; flex:0 0 360px; width:360px; background:linear-gradient(170deg,#0a1c30 0%,#0f2740 100%); }
+.slide-deck.is-fullscreen .presenter-notes,
+.slide-deck:fullscreen .presenter-notes { font-size:clamp(15px,1.15vw,19px); }
+
+@media (max-width: 900px) {
+    .deck-stage { flex-direction:column; }
+    .presenter-panel { flex:0 0 auto; width:100%; max-height:240px; }
+}
+
+/* ============ 数字人主讲老师（放在幻灯片视口内左下角）============ */
+.avatar-dock { position:absolute; left:14px; bottom:12px; z-index:7; width:150px; display:flex; flex-direction:column; align-items:center; gap:7px; user-select:none; pointer-events:none; }
+.avatar-dock.hidden { display:none; }
+.avatar-dock > * { pointer-events:auto; }
+.avatar-stage { position:relative; width:118px; height:118px; border-radius:22px; background:linear-gradient(160deg,#eaf3ff,#cfe4ff); box-shadow:0 14px 30px rgba(15,23,42,.30); border:2px solid rgba(255,255,255,.75); overflow:hidden; }
+.avatar-stage svg { width:100%; height:100%; display:block; }
+@keyframes av-blink { 0%,92%,100%{ transform:scaleY(1); } 96%{ transform:scaleY(.08); } }
+.avatar-eyes { transform-origin:center; animation:av-blink 4.6s infinite; }
+@keyframes av-nod { 0%,100%{ transform:translateY(0) rotate(0); } 50%{ transform:translateY(2px) rotate(-1deg); } }
+.avatar-stage.speaking .avatar-head { animation:av-nod .5s ease-in-out infinite; transform-origin:50% 90%; }
+@keyframes av-talk { 0%,100%{ transform:scaleY(.32); } 50%{ transform:scaleY(1.15); } }
+.avatar-mouth { transform-origin:center; transform:scaleY(.4); }
+.avatar-stage.speaking .avatar-mouth { animation:av-talk .26s ease-in-out infinite; }
+.avatar-stage::after { content:''; position:absolute; inset:-2px; border-radius:22px; pointer-events:none; opacity:0; }
+@keyframes av-ring { 0%{ box-shadow:0 0 0 0 rgba(37,99,235,.5); opacity:.9; } 100%{ box-shadow:0 0 0 13px rgba(37,99,235,0); opacity:0; } }
+.avatar-stage.speaking::after { animation:av-ring 1.4s ease-out infinite; }
+.avatar-name { font-size:12px; font-weight:800; color:#fff; background:rgba(12,34,56,.85); padding:3px 12px; border-radius:999px; box-shadow:0 4px 10px rgba(0,0,0,.22); white-space:nowrap; }
+.avatar-ctrls { display:flex; gap:6px; }
+.avatar-ctrls button { width:32px; height:32px; border:0; border-radius:50%; background:rgba(12,34,56,.85); color:#fff; cursor:pointer; font-size:12px; display:inline-flex; align-items:center; justify-content:center; box-shadow:0 6px 14px rgba(0,0,0,.24); transition:transform .15s, background .15s; }
+.avatar-ctrls button:hover { transform:translateY(-2px); background:#12568a; }
+.avatar-hint { display:none; font-size:11px; color:#fff; background:rgba(12, 58, 95,.8); padding:2px 9px; border-radius:8px; text-align:center; max-width:150px; }
+
+/* 字幕条（幻灯片视口内底部居中）*/
+.subtitle-bar { position:absolute; left:50%; transform:translateX(-50%); bottom:16px; z-index:6; max-width:min(78%,720px); padding:11px 20px; border-radius:14px; background:rgba(8,20,34,.84); color:#f8fafc; font-size:17px; line-height:1.55; text-align:center; box-shadow:0 12px 30px rgba(0,0,0,.32); display:none; }
+.subtitle-bar.show { display:block; }
+.slide-deck.is-fullscreen .subtitle-bar,
+.slide-deck:fullscreen .subtitle-bar { font-size:clamp(18px,1.7vw,26px); bottom:26px; }
+.slide-deck.is-fullscreen .avatar-stage,
+.slide-deck:fullscreen .avatar-stage { width:132px; height:132px; }
+.narrate-toggle.on { background:#0c2238 !important; color:#fff !important; border-color:#0c2238 !important; }
+@media (max-width: 900px) { .avatar-dock { width:104px; } .avatar-stage { width:84px; height:84px; } .subtitle-bar { font-size:14px; max-width:88%; } }
+
+/* ============ 视觉统一：一套内聚的设计语言（收敛配色 / 统一控件）============ */
+.slide-deck {
+    --dk-ink:#12314f; --dk-primary:#1c4e7a; --dk-primary-d:#0c2a45;
+    --dk-accent:#e0952b; --dk-line:#dbe4ee; --dk-muted:#64748b;
+}
+/* 工具栏：干净、克制、层次清晰 */
+.slide-deck .deck-toolbar { gap:8px; padding:2px 2px 14px; align-items:center; flex-wrap:wrap; justify-content:flex-start; }
+.slide-deck .deck-toolbar button.btn-secondary,
+.slide-deck .deck-toolbar button.btn-primary {
+    border-radius:999px; padding:.5rem 1rem; font-size:13px; font-weight:600; letter-spacing:.01em;
+    display:inline-flex; align-items:center; gap:7px; border:1px solid var(--dk-line);
+    background:#fff; color:var(--dk-ink); box-shadow:0 1px 2px rgba(15,23,42,.05); transition:all .16s ease;
+}
+.slide-deck .deck-toolbar button.btn-secondary:hover { border-color:#b6c7da; background:#f5f9fc; transform:translateY(-1px); }
+.slide-deck .deck-toolbar button.btn-primary {
+    background:linear-gradient(135deg,var(--dk-primary),var(--dk-primary-d)); color:#fff; border-color:transparent;
+    box-shadow:0 6px 16px rgba(28,78,122,.26);
+}
+.slide-deck .deck-toolbar button.btn-primary:hover { transform:translateY(-1px); box-shadow:0 9px 20px rgba(28,78,122,.34); }
+.slide-deck .deck-toolbar button.btn-secondary.on { background:linear-gradient(135deg,var(--dk-primary),var(--dk-primary-d)) !important; color:#fff !important; border-color:transparent !important; }
+.slide-deck .deck-toolbar .speed-select { border-radius:999px; border:1px solid var(--dk-line); padding:.42rem .8rem; font-size:13px; color:var(--dk-ink); background:#fff; }
+.slide-deck .deck-toolbar .btn-secondary i, .slide-deck .deck-toolbar .btn-primary i { font-size:12px; opacity:.9; }
+
+/* 数字人：与主色一致的精致小窗 */
+.slide-deck .avatar-stage { border-radius:18px; border:3px solid #fff; background:linear-gradient(160deg,#eaf2fb,#d3e4f5); box-shadow:0 12px 28px rgba(12,42,69,.30); }
+.slide-deck .avatar-name { background:var(--dk-primary-d); letter-spacing:.02em; }
+.slide-deck .avatar-ctrls button { background:var(--dk-primary-d); }
+.slide-deck .avatar-ctrls button:hover { background:var(--dk-primary); }
+
+/* 字幕：沉稳的深蓝玻璃条 */
+.slide-deck .subtitle-bar { background:rgba(12,42,69,.90); border:1px solid rgba(255,255,255,.08); font-weight:500; letter-spacing:.01em; }
+
+/* 助教 AI：与主色统一 */
+.slide-deck .ai-fab { background:linear-gradient(135deg,var(--dk-primary),var(--dk-primary-d)); box-shadow:0 10px 24px rgba(28,78,122,.38); }
+.slide-deck .ai-dock-head { background:linear-gradient(135deg,var(--dk-primary),var(--dk-primary-d)); }
+.slide-deck .ai-dock-foot button { background:linear-gradient(135deg,var(--dk-primary),var(--dk-primary-d)); }
+.slide-deck .ai-dock-foot textarea:focus { border-color:var(--dk-primary); box-shadow:0 0 0 3px rgba(28,78,122,.12); }
+.slide-deck .ai-msg.user { background:linear-gradient(135deg,var(--dk-primary),var(--dk-primary-d)); }
+
+/* 讲解面板：与主色统一的深蓝 */
+.slide-deck .presenter-panel { background:linear-gradient(170deg,#12314f,#0c2a45); }
+
+/* 自测页：收敛为柔和的琥珀卡片，不再刺眼的亮黄 */
+.courseware-quiz-block { background:#fffaf0; border:1px solid #f0d49a; box-shadow:0 8px 22px rgba(224,149,43,.10); }
+.courseware-quiz-block::before { background:linear-gradient(90deg,var(--dk-accent),#f0b45f); }
+.quiz-question-text { color:#7a4d12; }
+.quiz-option { background:#fff; border:1.5px solid #eadfc8; }
+.quiz-option:hover { border-color:var(--dk-accent); background:#fffdf8; }
+.quiz-option.selected { background:rgba(224,149,43,.12); border-color:var(--dk-accent); }
+.quiz-submit-btn { background:linear-gradient(135deg,var(--dk-accent),#f0b45f); box-shadow:0 4px 12px rgba(224,149,43,.28); }
+
+/* ============ 幻灯片重设计：现代简约·浅色（统一主题 + 文字/背景对比）============ */
+/* 三种主题统一成同一套浅色系，消除同一份课件里深/浅/蓝配色互相打架 */
+.slide.courseware-slide[data-theme]{
+    --sw-ink:#142943; --sw-body:#3b4b60; --sw-muted:#6b7a8d; --sw-accent:#12568a; --sw-accent-2:#818cf8; --sw-line:#e9edf3;
+    background:linear-gradient(180deg,#ffffff 0%,#f6f8fc 100%);
+    color:var(--sw-body);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+}
+/* 去掉死板的左侧导航栏 + 琥珀竖条；页码改为右上角低调角标 */
+.slide.courseware-slide[data-theme]::before{
+    content:attr(data-page); left:auto; right:30px; top:26px; bottom:auto; width:auto; height:auto;
+    background:transparent; color:#c7d0dc; font-size:14px; font-weight:800; letter-spacing:.18em; padding:0; display:block;
+}
+.slide.courseware-slide[data-theme]::after{ display:none; }
+.slide.courseware-slide[data-theme] .courseware-inner{ margin-left:0; padding:46px 54px 40px; gap:22px; }
+.slide.courseware-slide[data-theme] .courseware-layout-tag{ display:none; }
+
+.slide.courseware-slide[data-theme] .courseware-kicker{ background:#eef0fe; color:var(--sw-accent); letter-spacing:.16em; font-weight:800; }
+/* 标题：强对比深墨蓝 + 靛蓝下划线强调，建立层次、不呆板 */
+.slide.courseware-slide[data-theme] .courseware-title{ color:var(--sw-ink); font-weight:800; letter-spacing:-.01em; line-height:1.14; position:relative; padding-bottom:16px; }
+.slide.courseware-slide[data-theme] .courseware-title::after{ content:""; position:absolute; left:0; bottom:0; width:56px; height:4px; border-radius:999px; background:linear-gradient(90deg,var(--sw-accent),var(--sw-accent-2)); }
+.slide.courseware-slide[data-theme] .courseware-goal{ background:#f3f5ff; border-left:4px solid var(--sw-accent); color:#0c3a5f; border-radius:10px; }
+.slide.courseware-slide[data-theme] .courseware-goal i{ color:var(--sw-accent); }
+
+/* 卡片：柔和、透气、去掉彩色顶条（消除彩虹感）*/
+.slide.courseware-slide[data-theme] .courseware-block{ border:1px solid var(--sw-line); background:#ffffff; border-radius:16px; padding:22px 24px; box-shadow:0 6px 22px rgba(20,41,67,.05); }
+.slide.courseware-slide[data-theme] .courseware-block:hover{ box-shadow:0 12px 30px rgba(20,41,67,.09); }
+.slide.courseware-slide[data-theme] .courseware-block::before{ display:none; }
+.slide.courseware-slide[data-theme] .courseware-block-label{ color:var(--sw-ink); font-weight:800; }
+.slide.courseware-slide[data-theme] .courseware-block[data-kind] .courseware-block-label i{ color:var(--sw-accent); }
+.slide.courseware-slide[data-theme] .courseware-block-text,
+.slide.courseware-slide[data-theme] .courseware-block ul,
+.slide.courseware-slide[data-theme] .courseware-block li{ color:var(--sw-body); }
+.slide.courseware-slide[data-theme] .courseware-block li::before{ background:var(--sw-accent); }
+.slide.courseware-slide[data-theme] .courseware-body.layout-process_flow .courseware-block::after,
+.slide.courseware-slide[data-theme] .courseware-body.layout-agenda .courseware-block::after{ color:rgba(18, 86, 138,.07); }
+/* 代码块：恢复深色背景 + 浅色代码（上面的通用白底规则会把它盖成白底、导致浅字看不清）*/
+.slide.courseware-slide[data-theme] .courseware-code-block{ background:#0f1b2d; border-color:#16233a; box-shadow:0 6px 22px rgba(8,16,30,.28); }
+.slide.courseware-slide[data-theme] .courseware-code-block .courseware-block-label{ color:#e2e8f0; }
+.slide.courseware-slide[data-theme] .courseware-code-block code,
+.slide.courseware-slide[data-theme] .courseware-code-block code.hljs{ color:#e2e8f0 !important; background:transparent !important; }
+/* 思考题提示卡（无选项的开放题，不当作选择题渲染）*/
+.slide.courseware-slide[data-theme] .courseware-prompt-block{ background:#f3f5ff; border-color:#dfe3fb; }
+.courseware-prompt-hint{ margin-top:12px; padding-top:12px; border-top:1px dashed rgba(18, 86, 138,.25); font-size:14px; line-height:1.6; color:#5b6b80; }
+
+.slide.courseware-slide[data-theme] .courseware-interaction{ background:#eafaf3; color:#0f7a52; }
+
+/* 封面：深靛蓝质感面板 + 大留白 hero */
+.slide.courseware-slide[data-theme] .courseware-cover-intro,
+.slide.courseware-slide[data-theme] .courseware-cover-task{ color:#42546a; }
+.slide.courseware-slide[data-theme] .courseware-cover-intro i,
+.slide.courseware-slide[data-theme] .courseware-cover-task i{ color:var(--sw-accent); }
+.slide.courseware-slide[data-theme] .courseware-cover-hero::after{ color:rgba(18, 86, 138,.06); }
+.slide.courseware-slide[data-theme] .courseware-cover-panel{ background:linear-gradient(160deg,#12568a 0%,#312e81 100%); color:#e8f1fb; box-shadow:0 20px 44px rgba(49,46,129,.28); }
+.slide.courseware-slide[data-theme] .courseware-cover-panel-title{ color:#c2dbf2; }
+.slide.courseware-slide[data-theme] .courseware-cover-num{ background:rgba(255,255,255,.16); }
+
+/* 案例页首块：深靛蓝强调块（文字保持浅色，避免撞底）*/
+.slide.courseware-slide[data-theme] .courseware-body.layout-case_study .courseware-block:first-child{ background:linear-gradient(135deg,#1e2a5a 0%,#312e81 100%); color:#e8f1fb; }
+.slide.courseware-slide[data-theme] .courseware-body.layout-case_study .courseware-block:first-child .courseware-block-label,
+.slide.courseware-slide[data-theme] .courseware-body.layout-case_study .courseware-block:first-child .courseware-block-text,
+.slide.courseware-slide[data-theme] .courseware-body.layout-case_study .courseware-block:first-child li{ color:#e8f1fb; }
+.slide.courseware-slide[data-theme] .courseware-body.layout-case_study .courseware-block:first-child .courseware-block-label i{ color:#c2dbf2; }
+
+/* ============ 课程大纲 / 教学讲义：默认收起 + 精致弹层 ============ */
+.course-actionbar { display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap; margin-bottom:18px; padding-bottom:16px; border-bottom:1px solid #eef1f5; }
+.course-actionbar-title { font-size:22px; font-weight:800; color:#142943; letter-spacing:-.01em; }
+.course-actionbar-actions { display:flex; gap:10px; flex-wrap:wrap; }
+.course-action-btn { display:inline-flex; align-items:center; gap:8px; padding:9px 16px; border:1px solid #dfe4ec; border-radius:999px; background:#fff; color:#334155; font-size:13.5px; font-weight:700; cursor:pointer; transition:all .16s ease; box-shadow:0 1px 2px rgba(15,23,42,.05); }
+.course-action-btn:hover { border-color:#12568a; color:#12568a; background:#f7f8ff; transform:translateY(-1px); }
+.course-action-btn i { font-size:13px; color:#12568a; }
+
+.info-modal { position:fixed; inset:0; z-index:1000; display:flex; align-items:center; justify-content:center; padding:24px; background:rgba(12,25,45,.5); backdrop-filter:blur(3px); opacity:0; transition:opacity .2s ease; }
+.info-modal.show { opacity:1; }
+.info-modal-card { width:min(860px,100%); max-height:88vh; display:flex; flex-direction:column; background:#fff; border-radius:18px; overflow:hidden; box-shadow:0 40px 90px rgba(12,25,45,.4); transform:translateY(10px) scale(.98); transition:transform .2s ease; }
+.info-modal.show .info-modal-card { transform:none; }
+.info-modal-head { display:flex; align-items:center; justify-content:space-between; padding:18px 24px; border-bottom:1px solid #eef1f5; background:linear-gradient(180deg,#fff,#fafbff); }
+.info-modal-title { font-size:17px; font-weight:800; color:#142943; }
+.info-modal-close { border:0; background:transparent; font-size:26px; line-height:1; color:#94a3b8; cursor:pointer; padding:0 4px; }
+.info-modal-close:hover { color:#334155; }
+.info-modal-body { padding:26px 30px 34px; overflow-y:auto; }
+
+/* 课程大纲面板 */
+.blueprint { display:flex; flex-direction:column; gap:22px; }
+.bp-chips { display:flex; flex-wrap:wrap; gap:10px; }
+.bp-chip { display:inline-flex; align-items:center; gap:7px; padding:7px 14px; border-radius:999px; background:#f3f5ff; color:#0c3a5f; font-size:13px; font-weight:700; }
+.bp-chip i { color:#12568a; }
+.bp-section { display:flex; flex-direction:column; gap:12px; }
+.bp-section-title { display:flex; align-items:center; gap:9px; font-size:15px; font-weight:800; color:#142943; }
+.bp-section-title i { color:#12568a; }
+.bp-goals { display:flex; flex-direction:column; gap:9px; }
+.bp-goal { display:flex; align-items:flex-start; gap:10px; font-size:14.5px; line-height:1.6; color:#3b4b60; }
+.bp-goal i { color:#12568a; margin-top:3px; flex:0 0 auto; }
+.bp-chapter { display:flex; gap:16px; padding:18px 20px; border:1px solid #eef1f5; border-radius:14px; background:#fff; box-shadow:0 4px 16px rgba(20,41,67,.04); }
+.bp-chapter-num { flex:0 0 auto; width:34px; height:34px; border-radius:10px; background:linear-gradient(135deg,#12568a,#3b82f6); color:#fff; font-weight:800; font-size:15px; display:flex; align-items:center; justify-content:center; }
+.bp-chapter-main { flex:1 1 auto; min-width:0; }
+.bp-chapter-title { font-size:16px; font-weight:800; color:#142943; }
+.bp-chapter-summary { font-size:14px; line-height:1.6; color:#5b6b80; margin-top:5px; }
+.bp-chapter-meta { font-size:12.5px; color:#93a1b3; margin-top:8px; }
+.bp-chapter-goals { list-style:none; margin:12px 0 0; padding:0; display:flex; flex-direction:column; gap:6px; }
+.bp-chapter-goals li { position:relative; padding-left:18px; font-size:13.5px; line-height:1.55; color:#4a5a6e; }
+.bp-chapter-goals li::before { content:""; position:absolute; left:2px; top:.62em; width:6px; height:6px; border-radius:999px; background:#818cf8; }
+
+/* 教学讲义阅读器：舒适排版 */
+.doc-reader { max-width:46em; margin:0 auto; color:#2f3e52; font-size:16px; line-height:1.85; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif; }
+.doc-reader h1,.doc-reader h2,.doc-reader h3,.doc-reader h4 { color:#142943; font-weight:800; line-height:1.3; margin:1.6em 0 .6em; }
+.doc-reader h1 { font-size:26px; } .doc-reader h2 { font-size:21px; padding-bottom:.3em; border-bottom:2px solid #eef0fe; } .doc-reader h3 { font-size:18px; }
+.doc-reader h1:first-child,.doc-reader h2:first-child,.doc-reader h3:first-child { margin-top:0; }
+.doc-reader p { margin:0 0 1.1em; }
+.doc-reader ul,.doc-reader ol { margin:0 0 1.1em; padding-left:1.4em; }
+.doc-reader li { margin:.4em 0; }
+.doc-reader strong { color:#142943; }
+.doc-reader a { color:#12568a; text-decoration:underline; }
+.doc-reader blockquote { margin:1.2em 0; padding:.6em 1.2em; border-left:4px solid #12568a; background:#f7f8ff; color:#42546a; border-radius:0 8px 8px 0; }
+.doc-reader code { background:#f1f3f9; color:#0c3a5f; padding:.12em .4em; border-radius:5px; font-size:.9em; }
+.doc-reader pre { background:#0f1b2d; color:#e2e8f0; padding:16px 18px; border-radius:12px; overflow-x:auto; margin:1.2em 0; }
+.doc-reader pre code { background:transparent; color:inherit; padding:0; }
+.doc-reader img { max-width:100%; border-radius:10px; }
+.doc-reader table { width:100%; border-collapse:collapse; margin:1.2em 0; font-size:14.5px; }
+.doc-reader th,.doc-reader td { border:1px solid #e6eaf2; padding:8px 12px; text-align:left; }
+.doc-reader th { background:#f5f7fb; color:#142943; font-weight:700; }
+@media (max-width:640px){ .info-modal-body { padding:18px; } .doc-reader { font-size:15px; } }
+/* 思维导图可视化：横向树 */
+.mm-wrap { overflow-x:auto; padding:14px 6px; }
+.mm-node { display:flex; align-items:center; }
+.mm-label { display:inline-block; padding:7px 13px; border-radius:9px; font-size:13.5px; line-height:1.35;
+  background:#eef4ff; color:#1e3a5f; border:1px solid #cfe0f5; white-space:nowrap; box-shadow:0 1px 3px rgba(15,23,42,.06); }
+.mm-node.mm-depth-0 > .mm-label { background:linear-gradient(135deg,#12568a,#38bdf8); color:#fff; border:0; font-weight:700; font-size:15px; padding:9px 16px; }
+.mm-node.mm-depth-1 > .mm-label { background:#e0f2fe; color:#075985; border-color:#bae6fd; font-weight:600; }
+.mm-node.mm-depth-2 > .mm-label { background:#f0f6fc; color:#0c3a5f; border-color:#bbf7d0; }
+.mm-node.mm-depth-3 > .mm-label { background:#f0f6fc; color:#9a3412; border-color:#c2dbf2; }
+.mm-children { display:flex; flex-direction:column; justify-content:center; padding-left:26px; position:relative; }
+.mm-children > .mm-node { position:relative; margin:5px 0; padding-left:18px; }
+/* 连接线：竖干 + 横支 */
+.mm-children > .mm-node::before { content:''; position:absolute; left:0; top:50%; width:16px; height:1.5px; background:#c7d6ea; }
+.mm-children::before { content:''; position:absolute; left:8px; top:12px; bottom:12px; width:1.5px; background:#c7d6ea; }
+.mm-children > .mm-node:only-child::before { width:26px; left:-8px; }
+/* 资源卡片：统一头部(图标+类型标签+标题) + 左侧分色条 */
+.res-card { position:relative; padding:16px 18px 16px 22px; background:#f8fafc; border:1px solid #eef2f7; border-radius:12px; margin-bottom:16px; overflow:hidden; box-shadow:0 1px 3px rgba(15,23,42,.04); }
+.res-card::before { content:''; position:absolute; left:0; top:0; bottom:0; width:4px; background:#94a3b8; }
+.res-head { display:flex; align-items:center; gap:10px; margin-bottom:12px; flex-wrap:wrap; }
+.res-badge { display:inline-flex; align-items:center; gap:6px; padding:4px 11px; border-radius:999px; font-size:12.5px; font-weight:600; background:#e2e8f0; color:#475569; white-space:nowrap; }
+.res-title { font-size:15px; font-weight:700; color:#0f172a; }
+.res-error { color:#b91c1c; font-size:14px; margin-top:2px; }
+.res-card[data-restype="ppt"]::before{background:#3b82f6;} .res-card[data-restype="ppt"] .res-badge{background:#e8f1fb;color:#0e4470;}
+.res-card[data-restype="animation"]::before{background:#12568a;} .res-card[data-restype="animation"] .res-badge{background:#e0f2fe;color:#075985;}
+.res-card[data-restype="mindmap"]::before{background:#0891b2;} .res-card[data-restype="mindmap"] .res-badge{background:#cffafe;color:#12568a;}
+.res-card[data-restype="quiz"]::before{background:#12568a;} .res-card[data-restype="quiz"] .res-badge{background:#e8f1fb;color:#92400e;}
+.res-card[data-restype="reading"]::before{background:#3b82f6;} .res-card[data-restype="reading"] .res-badge{background:#dbeafe;color:#0c3a5f;}
+.res-card[data-restype="code"]::before{background:#334155;} .res-card[data-restype="code"] .res-badge{background:#e2e8f0;color:#334155;}
+.res-card.is-failed::before{background:#ef4444;} .res-card.is-failed .res-badge{background:#fee2e2;color:#b91c1c;}
+/* 内容审核·防幻觉面板 */
+.content-review-panel { margin:0 0 16px; padding:12px 16px; border:1px solid #bbf7d0; background:#f0f6fc; border-radius:10px; font-size:13px; color:#0c3a5f; display:flex; flex-wrap:wrap; gap:14px; align-items:center; }
+.content-review-panel > strong { color:#15803d; }
+.content-review-panel .cr-warn { flex-basis:100%; color:#0e4470; font-size:12px; margin-top:4px; }
+/* AI 生产过程：把协作时间线/学生模拟聚合到一个独立分区，不再逐资源重复 */
+.ai-process-zone { margin:0 0 18px; padding:14px 16px; border:1px solid #e9d5ff; background:#f0f6fc; border-radius:12px; }
+.ai-process-zone > .zone-title { font-size:14px; font-weight:700; color:#12568a; margin-bottom:6px; display:flex; align-items:center; gap:7px; }
+.ai-process-zone > .zone-sub { font-size:12px; color:#3b82f6; margin-bottom:10px; }
+.ai-process-group { margin-top:10px; }
+.ai-process-group > .grp-title { font-size:12.5px; font-weight:600; color:#3b82f6; margin-bottom:4px; }
+.section-zone-title { font-size:16px; font-weight:800; color:#0f172a; margin:22px 0 12px; padding-bottom:8px; border-bottom:2px solid #eef2f7; display:flex; align-items:center; gap:8px; }
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const statusEl = document.getElementById('outlineStatus');
+    const progressText = document.getElementById('outlineProgressText');
+    const contentPre = document.getElementById('outlineContentPre');
+    const outlineId = {{ outline.id }};
+    const outlineTitle = "{{ outline.title|escapejs }}";
+
+    // marked + highlight 初始化
+    try {
+        if (window.marked && window.hljs) {
+            marked.setOptions({
+                highlight: function(code, lang) {
+                    try {
+                        if (lang && hljs.getLanguage(lang)) {
+                            return hljs.highlight(code, {language: lang}).value;
+                        }
+                        return hljs.highlightAuto(code).value;
+                    } catch(e) { return hljs.highlightAuto(code).value; }
+                }
+            });
+        }
+    } catch(e) { console.warn('marked/hljs init failed', e); }
+
+    // 思维导图：把缩进 Markdown 列表解析成树，渲染成横向可视化导图
+    function renderMindmapTree(text){
+        const lines = String(text || '').split('\n').filter(function(l){ return l.trim(); });
+        const root = { text: '', children: [], level: -1 };
+        const stack = [root];
+        lines.forEach(function(line){
+            const m = line.match(/^(\s*)(?:[-*+]|\d+\.)?\s*(.*)$/);
+            if (!m) return;
+            const indent = (m[1] || '').replace(/\t/g, '  ').length;
+            let label = (m[2] || '').trim().replace(/^#+\s*/, '').replace(/\*\*/g, '').replace(/`/g, '').replace(/^[-*+]\s*/, '');
+            if (!label) return;
+            const node = { text: label, children: [], level: indent };
+            while (stack.length > 1 && stack[stack.length - 1].level >= indent) stack.pop();
+            stack[stack.length - 1].children.push(node);
+            stack.push(node);
+        });
+        let treeRoot;
+        if (root.children.length === 1) treeRoot = root.children[0];
+        else treeRoot = { text: (outlineTitle || '思维导图'), children: root.children };
+        const wrap = document.createElement('div'); wrap.className = 'mm-wrap';
+        wrap.appendChild(buildMmNode(treeRoot, 0));
+        return wrap;
+    }
+    function buildMmNode(node, depth){
+        const el = document.createElement('div'); el.className = 'mm-node mm-depth-' + Math.min(depth, 3);
+        const label = document.createElement('div'); label.className = 'mm-label'; label.textContent = node.text;
+        el.appendChild(label);
+        if (node.children && node.children.length){
+            const kids = document.createElement('div'); kids.className = 'mm-children';
+            node.children.forEach(function(c){ kids.appendChild(buildMmNode(c, depth + 1)); });
+            el.appendChild(kids);
+        }
+        return el;
+    }
+
+    // 安全渲染：从 Markdown 生成 HTML 后使用 DOMPurify 清理
+    // 保护 LaTeX 公式：marked 之前把公式换成哨兵占位符，避免 markdown 把公式里的
+    // _ * \ 当强调语法吃掉；marked 之后还原，交给 KaTeX（typesetMath）渲染。
+    function _protectMath(md){
+        var store = [];
+        function grab(re){ md = md.replace(re, function(m){ store.push(m); return 'KTXMATH' + (store.length - 1) + 'KTXEND'; }); }
+        grab(/\$\$[\s\S]+?\$\$/g);
+        grab(/\\\[[\s\S]+?\\\]/g);
+        grab(/\\\([\s\S]+?\\\)/g);
+        grab(/\$(?!\s)(?:\\.|[^$\\\n])+?\$/g);
+        return { md: md, store: store };
+    }
+    function _restoreMath(html, store){
+        return html.replace(/KTXMATH(\d+)KTXEND/g, function(_, i){ return store[+i]; });
+    }
+    function safeHtmlFromMd(md){
+        try{
+            var p = _protectMath(md || '');
+            var raw = (window.marked) ? marked.parse(p.md) : p.md;
+            raw = _restoreMath(raw, p.store);
+            if (window.DOMPurify && DOMPurify.sanitize) return DOMPurify.sanitize(raw);
+            return raw;
+        } catch(err){ console.warn('safeHtmlFromMd failed', err); return md || ''; }
+    }
+
+    // 行内 Markdown（不外包 <p>，用于选项、答案等短文本）
+    function safeInlineFromMd(md){
+        try{
+            var p = _protectMath(md || '');
+            var raw = (window.marked && marked.parseInline) ? marked.parseInline(p.md) : p.md;
+            raw = _restoreMath(raw, p.store);
+            if (window.DOMPurify && DOMPurify.sanitize) return DOMPurify.sanitize(raw);
+            return raw;
+        } catch(err){ return md || ''; }
+    }
+
+    // 用 KaTeX 渲染元素内的公式（$...$ / $$...$$ / \(...\) / \[...\]）
+    function typesetMath(el){
+        if (!el || !window.renderMathInElement) return;
+        try{
+            renderMathInElement(el, {
+                delimiters: [
+                    { left: '$$', right: '$$', display: true },
+                    { left: '\\[', right: '\\]', display: true },
+                    { left: '$', right: '$', display: false },
+                    { left: '\\(', right: '\\)', display: false }
+                ],
+                throwOnError: false
+            });
+        } catch(err){ /* 忽略单条公式渲染错误 */ }
+    }
+
+    // 把 Markdown 渲染进元素，并渲染其中的代码高亮与公式（内容型区块统一走这个）
+    function renderRich(el, md, inline){
+        if (!el) return;
+        el.innerHTML = inline ? safeInlineFromMd(md) : safeHtmlFromMd(md);
+        try{ if (window.hljs) el.querySelectorAll('pre code').forEach(function(b){ hljs.highlightElement(b); }); }catch(e){}
+        typesetMath(el);
+    }
+
+    // CSRF helper
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+
+    function asArray(value) {
+        if (Array.isArray(value)) return value;
+        if (value === null || typeof value === 'undefined' || value === '') return [];
+        return [value];
+    }
+
+    function slideTitle(slide) {
+        if (slide && typeof slide === 'object') return slide.title || '未命名页';
+        return String(slide || '').split(/\n+/).filter(Boolean)[0] || '未命名页';
+    }
+
+    function slidePreviewText(slide) {
+        if (slide && typeof slide === 'object') {
+            const parts = [slide.title].concat(asArray(slide.bullets)).concat([slide.speaker_notes]).filter(Boolean);
+            return parts.join(' ');
+        }
+        return String(slide || '');
+    }
+
+    function appendTextBlock(parent, className, text) {
+        const el = document.createElement('div');
+        el.className = className;
+        el.textContent = text || '';
+        parent.appendChild(el);
+        return el;
+    }
+
+    function iconEl(cls) {
+        const i = document.createElement('i');
+        i.className = cls;
+        return i;
+    }
+
+    const BLOCK_KIND_ICONS = {
+        concept_node: 'fa-lightbulb',
+        step: 'fa-route',
+        compare_column: 'fa-scale-balanced',
+        code: 'fa-code',
+        code_block: 'fa-code',
+        animation: 'fa-film',
+        animation_embed: 'fa-film',
+        question: 'fa-circle-question',
+        bullet_card: 'fa-check'
+    };
+
+    function appendBlockLabel(parent, kind, text) {
+        const label = document.createElement('div');
+        label.className = 'courseware-block-label';
+        label.appendChild(iconEl('fas ' + (BLOCK_KIND_ICONS[kind] || 'fa-check')));
+        label.appendChild(document.createTextNode(' ' + (text || '')));
+        parent.appendChild(label);
+        return label;
+    }
+
+    // 封面页（layout=cover）专属右侧目标清单面板
+    function renderCoverBody(body, slide, blocks) {
+        const hero = document.createElement('div');
+        hero.className = 'courseware-cover-hero';
+
+        const introText = slide.teaching_goal || slide.teaching_task || '';
+        if (introText) {
+            const intro = document.createElement('div');
+            intro.className = 'courseware-cover-intro';
+            intro.appendChild(iconEl('fas fa-compass'));
+            intro.appendChild(document.createTextNode(introText));
+            hero.appendChild(intro);
+        }
+        if (slide.teaching_task && slide.teaching_task !== slide.teaching_goal) {
+            const task = document.createElement('div');
+            task.className = 'courseware-cover-task';
+            task.appendChild(iconEl('fas fa-chalkboard-user'));
+            task.appendChild(document.createTextNode(slide.teaching_task));
+            hero.appendChild(task);
+        }
+        body.appendChild(hero);
+
+        const panel = document.createElement('div');
+        panel.className = 'courseware-cover-panel';
+        const panelTitle = document.createElement('div');
+        panelTitle.className = 'courseware-cover-panel-title';
+        panelTitle.appendChild(iconEl('fas fa-bullseye'));
+        panelTitle.appendChild(document.createTextNode(' 本课学习目标'));
+        panel.appendChild(panelTitle);
+
+        const list = document.createElement('ul');
+        list.className = 'courseware-cover-list';
+        // 目标清单优先用 slide.bullets（模型给的 3-5 条完整目标）；此前只取 visual_blocks，
+        // 结果一个 bullet_card 块只渲染成 1 行，4 条目标塌成 1 行。
+        const items = asArray(slide.bullets).length ? asArray(slide.bullets) : blocks;
+        if (items.length) {
+            items.forEach(function(item, idx) {
+                const li = document.createElement('li');
+                const num = document.createElement('span');
+                num.className = 'courseware-cover-num';
+                num.textContent = String(idx + 1);
+                const text = document.createElement('span');
+                text.className = 'courseware-cover-text';
+                const value = (item && typeof item === 'object') ? (item.text || item.label || item.title || '') : String(item || '');
+                text.textContent = value;
+                li.appendChild(num);
+                li.appendChild(text);
+                list.appendChild(li);
+            });
+        } else {
+            const li = document.createElement('li');
+            const num = document.createElement('span');
+            num.className = 'courseware-cover-num';
+            num.appendChild(iconEl('fas fa-graduation-cap'));
+            const text = document.createElement('span');
+            text.className = 'courseware-cover-text';
+            text.textContent = '即将开启本课学习';
+            li.appendChild(num);
+            li.appendChild(text);
+            list.appendChild(li);
+        }
+        panel.appendChild(list);
+        body.appendChild(panel);
+    }
+
+    // 独立动画演示舞台：大号 iframe 填满页面，配观察提示与"重播"
+    function renderAnimationStage(body, slide, blocks) {
+        const animBlock = (blocks || []).find(function(b){ return b && (b.kind === 'animation' || b.kind === 'animation_embed'); }) || {};
+        const stage = document.createElement('div');
+        stage.className = 'anim-stage';
+
+        const frame = document.createElement('div');
+        frame.className = 'anim-stage-frame';
+        const code = animBlock.animation_code || animBlock.code
+            || '<!doctype html><html><body style="font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;color:#94a3b8;">动画内容</body></html>';
+        const iframe = document.createElement('iframe');
+        iframe.setAttribute('sandbox', 'allow-scripts');
+        iframe.setAttribute('loading', 'lazy');
+        iframe.srcdoc = code;
+        frame.appendChild(iframe);
+
+        const replay = document.createElement('button');
+        replay.className = 'anim-stage-replay';
+        replay.appendChild(iconEl('fas fa-rotate-right'));
+        replay.appendChild(document.createTextNode(' 重播'));
+        replay.addEventListener('click', function(){ iframe.srcdoc = code; });
+        frame.appendChild(replay);
+        stage.appendChild(frame);
+
+        const note = document.createElement('div');
+        note.className = 'anim-stage-note';
+        note.appendChild(iconEl('fas fa-eye'));
+        note.appendChild(document.createTextNode(' ' + (animBlock.usage_note || slide.teaching_goal
+            || ('观察这段动画，理解“' + (slide.title || '') + '”的动态变化过程。'))));
+        stage.appendChild(note);
+
+        body.appendChild(stage);
+    }
+
+    function renderCoursewareSlide(slide) {
+        if (!slide || typeof slide !== 'object') {
+            const inner = document.createElement('div');
+            inner.className = 'inner text-sm';
+            try { renderRich(inner, slide || ''); } catch(e){ inner.textContent = slide || ''; }
+            return inner;
+        }
+
+        const layout = slide.layout || slide.type || 'two_column';
+        const theme = slide.theme || 'academic_light';
+        const root = document.createElement('div');
+        root.className = 'inner courseware-inner';
+
+        const head = document.createElement('div');
+        head.className = 'courseware-head';
+        const titleWrap = document.createElement('div');
+        // 段标：用学生能懂的中文栏目名，绝不显示 layout/type 这类内部名词
+        const KICKER_LABELS = { concept_map:'核心概念', process_flow:'工作原理', case_study:'实际应用', comparison:'对比辨析', quiz_check:'随堂小测', summary:'本节小结', animation_embed:'动态演示', agenda:'内容概览' };
+        const kickerText = KICKER_LABELS[layout] || '';
+        if (kickerText) appendTextBlock(titleWrap, 'courseware-kicker', kickerText);
+        appendTextBlock(titleWrap, 'courseware-title', slide.title || '未命名页');
+        head.appendChild(titleWrap);
+        root.appendChild(head);
+
+        // 注意：教学目标 / 学习活动等"给老师看"的教学设计内容，不放在学生课件正文上，
+        // 改由右侧"老师讲解"面板呈现，让幻灯片本身只承载要传授给学生的知识。
+
+        const body = document.createElement('div');
+        body.className = 'courseware-body layout-' + layout;
+        const blocks = Array.isArray(slide.visual_blocks) && slide.visual_blocks.length
+            ? slide.visual_blocks
+            : asArray(slide.bullets).map((item, index) => ({ kind: 'bullet_card', label: '要点 ' + (index + 1), text: item }));
+
+        if (layout === 'cover') {
+            renderCoverBody(body, slide, blocks);
+        } else if (layout === 'animation_embed') {
+            renderAnimationStage(body, slide, blocks);
+        } else {
+        const isStepLayout = layout === 'process_flow' || layout === 'agenda';
+        const bulletsArr = asArray(slide.bullets);
+        // 丢掉"没有真实代码"的空代码块——否则会渲染成一个塞着讲稿的深色大空盒子
+        const renderable = blocks.filter(function(b){
+            const isCode = b.kind === 'code' || b.kind === 'code_block' || b.language;
+            return !(isCode && !String(b.code || '').trim());
+        });
+        // 卡片本身是否已"有料"（有 items 列表 / 真实代码 / 题目 / 动画）
+        const hasRich = renderable.some(function(b){
+            const its = asArray(b.items || b.points);
+            const codeOk = (b.kind === 'code' || b.kind === 'code_block' || b.language) && String(b.code || '').trim();
+            return its.length >= 2 || b.kind === 'question' || b.kind === 'animation' || b.kind === 'animation_embed' || codeOk;
+        });
+        // 卡片单薄（每张只有一句话/空代码）时，补一张"核心要点"卡承载模型最完整的 bullets，
+        // 避免整页空荡——此前 visual_blocks 一存在，这些 bullets 就被整段丢弃了。
+        const showPoints = !hasRich && bulletsArr.length > 0;
+        if (showPoints) {
+            const pts = document.createElement('div');
+            pts.className = 'courseware-block courseware-points';
+            pts.dataset.kind = 'bullet_card';
+            appendBlockLabel(pts, 'bullet_card', '核心要点');
+            const ul = document.createElement('ul');
+            bulletsArr.forEach(function(item){
+                const li = document.createElement('li');
+                li.textContent = (item && typeof item === 'object') ? (item.text || item.label || '') : String(item || '');
+                ul.appendChild(li);
+            });
+            pts.appendChild(ul);
+            body.appendChild(pts);
+        }
+        renderable.forEach(function(block, index) {
+            const kind = block.kind || (block.language ? 'code' : 'bullet_card');
+            const stepAttr = String(index + 1);
+            // 已用"核心要点"卡承载 bullets 时，跳过单薄的 bullet_card，避免重复
+            if (showPoints && kind === 'bullet_card') return;
+            // 处理代码块
+            if (block.kind === 'code' || block.kind === 'code_block' || block.language) {
+                const codeContainer = document.createElement('div');
+                codeContainer.className = 'courseware-block courseware-code-block';
+                codeContainer.dataset.kind = kind;
+                if (isStepLayout) codeContainer.dataset.step = stepAttr;
+                appendBlockLabel(codeContainer, kind, block.label || '代码示例');
+                
+                const pre = document.createElement('pre');
+                const code = document.createElement('code');
+                code.textContent = block.code || block.text || block.content || '';
+                if (block.language) {
+                    code.className = 'language-' + block.language;
+                }
+                pre.appendChild(code);
+                codeContainer.appendChild(pre);
+                
+                // 尝试代码高亮
+                try {
+                    if (window.hljs) {
+                        hljs.highlightElement(code);
+                    }
+                } catch(e) {}
+                
+                body.appendChild(codeContainer);
+                return;
+            }
+
+            // 处理动画嵌入
+            if (block.kind === 'animation' || block.kind === 'animation_embed') {
+                const animationContainer = document.createElement('div');
+                animationContainer.className = 'courseware-block courseware-animation-container';
+                animationContainer.dataset.kind = kind;
+                if (isStepLayout) animationContainer.dataset.step = stepAttr;
+                appendBlockLabel(animationContainer, kind, block.label || '动画演示');
+                
+                const iframe = document.createElement('iframe');
+                iframe.setAttribute('sandbox', 'allow-scripts');
+                iframe.setAttribute('loading', 'lazy');
+                const animationCode = block.animation_code || block.code || '<!doctype html><html><body style="font-family:Arial;padding:24px;">动画内容</body></html>';
+                iframe.srcdoc = animationCode;
+                animationContainer.appendChild(iframe);
+                
+                if (block.usage_note) {
+                    const note = document.createElement('div');
+                    note.className = 'animation-note';
+                    note.textContent = block.usage_note;
+                    animationContainer.appendChild(note);
+                }
+                
+                body.appendChild(animationContainer);
+                return;
+            }
+
+            // 处理quiz题目
+            if (block.kind === 'question') {
+                const validChoices = Array.isArray(block.choices) ? block.choices.filter(function(c){ return c && (typeof c === 'string' ? c.trim() : (c.label || c.text || c.value)); }) : [];
+                // 没有选项的"题"（旧数据/兜底生成的开放题）不当作选择题渲染，改成一个"思考题"提示卡，避免出现空的自测块
+                if (validChoices.length < 2) {
+                    const promptBlock = document.createElement('div');
+                    promptBlock.className = 'courseware-block courseware-prompt-block';
+                    promptBlock.dataset.kind = kind;
+                    if (isStepLayout) promptBlock.dataset.step = stepAttr;
+                    appendBlockLabel(promptBlock, kind, '思考题');
+                    const qt = document.createElement('div');
+                    qt.className = 'courseware-block-text';
+                    qt.textContent = block.question_text || block.text || block.label || '';
+                    promptBlock.appendChild(qt);
+                    if (block.explanation) {
+                        const hint = document.createElement('div');
+                        hint.className = 'courseware-prompt-hint';
+                        hint.textContent = '参考思路：' + block.explanation;
+                        promptBlock.appendChild(hint);
+                    }
+                    body.appendChild(promptBlock);
+                    return;
+                }
+
+                const questionContainer = document.createElement('div');
+                questionContainer.className = 'courseware-block courseware-quiz-block';
+                questionContainer.dataset.questionIndex = index;
+                questionContainer.dataset.kind = kind;
+                if (isStepLayout) questionContainer.dataset.step = stepAttr;
+                appendBlockLabel(questionContainer, kind, block.label || ('问题 ' + (index + 1)));
+
+                const questionText = document.createElement('div');
+                questionText.className = 'quiz-question-text';
+                renderRich(questionText, block.question_text || block.text || block.label);
+                questionContainer.appendChild(questionText);
+
+                // 渲染选项
+                if (block.choices && Array.isArray(block.choices)) {
+                    const optionsContainer = document.createElement('div');
+                    optionsContainer.className = 'quiz-options';
+                    
+                    block.choices.forEach(function(choice, cIndex) {
+                        const optionDiv = document.createElement('div');
+                        optionDiv.className = 'quiz-option';
+                        
+                        const radio = document.createElement('input');
+                        radio.type = 'radio';
+                        radio.name = 'quiz_q' + index;
+                        radio.value = typeof choice === 'object' ? (choice.value || choice.label) : choice;
+                        radio.id = 'quiz_q' + index + '_opt' + cIndex;
+                        radio.className = 'quiz-radio';
+                        
+                        const label = document.createElement('label');
+                        label.className = 'quiz-option-label';
+                        label.htmlFor = radio.id;
+                        renderRich(label, typeof choice === 'object' ? (choice.label || choice.text || choice.value) : choice, true);
+                        
+                        optionDiv.appendChild(radio);
+                        optionDiv.appendChild(label);
+                        optionsContainer.appendChild(optionDiv);
+                    });
+                    
+                    questionContainer.appendChild(optionsContainer);
+                }
+                
+                // 答案和解析区域（初始隐藏）
+                const answerContainer = document.createElement('div');
+                answerContainer.className = 'quiz-answer-container';
+                answerContainer.style.display = 'none';
+                
+                const correctAnswer = document.createElement('div');
+                correctAnswer.className = 'quiz-correct-answer';
+                renderRich(correctAnswer, '**正确答案：** ' + (block.correct_answer || ''), true);
+                answerContainer.appendChild(correctAnswer);
+
+                if (block.explanation) {
+                    const explanation = document.createElement('div');
+                    explanation.className = 'quiz-explanation';
+                    renderRich(explanation, '**解析：** ' + block.explanation);
+                    answerContainer.appendChild(explanation);
+                }
+                
+                questionContainer.appendChild(answerContainer);
+                
+                // 存储正确答案到dataset
+                questionContainer.dataset.correctAnswer = block.correct_answer || '';
+                questionContainer.dataset.explanation = block.explanation || '';
+                
+                body.appendChild(questionContainer);
+                return;
+            }
+
+            // 默认处理其他类型的块
+            const card = document.createElement('div');
+            card.className = 'courseware-block block-' + kind;
+            card.dataset.kind = kind;
+            if (isStepLayout) card.dataset.step = stepAttr;
+            appendBlockLabel(card, kind, block.label || block.title || ('视觉块 ' + (index + 1)));
+            
+            // 处理HTML内容（Markdown渲染）
+            if (block.markdown || (block.text && block.text.includes('\n'))) {
+                const mdContainer = document.createElement('div');
+                mdContainer.className = 'courseware-block-text markdown-content';
+                try {
+                    renderRich(mdContainer, block.markdown || block.text);
+                } catch(e) {
+                    mdContainer.textContent = block.text || '';
+                }
+                card.appendChild(mdContainer);
+            } else if (block.text || block.content) {
+                appendTextBlock(card, 'courseware-block-text', block.text || block.content);
+            }
+            
+            const items = asArray(block.items || block.points);
+            if (items.length) {
+                const ul = document.createElement('ul');
+                items.forEach(function(item) {
+                    const li = document.createElement('li');
+                    // 支持Markdown格式的列表项
+                    if (typeof item === 'object' && item.text) {
+                        try {
+                            renderRich(li, item.text);
+                        } catch(e) {
+                            li.textContent = item.text;
+                        }
+                    } else {
+                        li.textContent = item;
+                    }
+                    ul.appendChild(li);
+                });
+                card.appendChild(ul);
+            }
+            body.appendChild(card);
+        });
+
+        if (!renderable.length && !showPoints) {
+            asArray(slide.bullets).forEach(function(item, index) {
+                const card = document.createElement('div');
+                card.className = 'courseware-block';
+                appendTextBlock(card, 'courseware-block-label', '要点 ' + (index + 1));
+                // 支持Markdown格式的要点
+                if (typeof item === 'object' && item.text) {
+                    const mdContainer = document.createElement('div');
+                    mdContainer.className = 'courseware-block-text';
+                    try {
+                        renderRich(mdContainer, item.text);
+                    } catch(e) {
+                        mdContainer.textContent = item.text;
+                    }
+                    card.appendChild(mdContainer);
+                } else {
+                    appendTextBlock(card, 'courseware-block-text', item);
+                }
+                body.appendChild(card);
+            });
+        }
+        }
+        root.appendChild(body);
+
+        // 讲稿、教学目标、"试着这样学"等给老师看的内容都移到讲解面板，
+        // 幻灯片正文只保留传授给学生的知识本身。
+        root.dataset.theme = theme;
+        return root;
+    }
+
+    // 通用信息弹层：课程大纲 / 教学讲义默认收起，点按钮才打开
+    function openInfoModal(titleText, bodyEl) {
+        const overlay = document.createElement('div'); overlay.className = 'info-modal';
+        const card = document.createElement('div'); card.className = 'info-modal-card';
+        const head = document.createElement('div'); head.className = 'info-modal-head';
+        const ht = document.createElement('div'); ht.className = 'info-modal-title'; ht.textContent = titleText;
+        const closeBtn = document.createElement('button'); closeBtn.className = 'info-modal-close'; closeBtn.innerHTML = '&times;'; closeBtn.setAttribute('aria-label', '关闭');
+        head.appendChild(ht); head.appendChild(closeBtn);
+        const body = document.createElement('div'); body.className = 'info-modal-body';
+        body.appendChild(bodyEl);
+        card.appendChild(head); card.appendChild(body);
+        overlay.appendChild(card); document.body.appendChild(overlay);
+        requestAnimationFrame(function(){ overlay.classList.add('show'); });
+        function dismiss(){ overlay.classList.remove('show'); setTimeout(function(){ overlay.remove(); document.removeEventListener('keydown', onEsc); }, 200); }
+        function onEsc(ev){ if (ev.key === 'Escape') dismiss(); }
+        closeBtn.addEventListener('click', dismiss);
+        overlay.addEventListener('click', function(e){ if (e.target === overlay) dismiss(); });
+        document.addEventListener('keydown', onEsc);
+    }
+
+    // 课程大纲（蓝图）精致排版：元信息 chips + 目标清单 + 章节卡片
+    function buildBlueprintPanel(blueprint, od) {
+        const wrap = document.createElement('div'); wrap.className = 'blueprint';
+        const aud = blueprint.audience || {};
+        const chips = document.createElement('div'); chips.className = 'bp-chips';
+        chips.innerHTML =
+            '<span class="bp-chip"><i class="fas fa-clock"></i> 预计 ' + (blueprint.estimated_hours || 0) + ' 小时</span>' +
+            '<span class="bp-chip"><i class="fas fa-user-graduate"></i> ' + (aud.level || '通用') + '</span>' +
+            '<span class="bp-chip"><i class="fas fa-chalkboard"></i> ' + (aud.preferred_mode || '综合') + '</span>';
+        wrap.appendChild(chips);
+
+        if (Array.isArray(blueprint.objectives) && blueprint.objectives.length) {
+            const sec = document.createElement('div'); sec.className = 'bp-section';
+            const h = document.createElement('div'); h.className = 'bp-section-title'; h.innerHTML = '<i class="fas fa-bullseye"></i> 课程目标';
+            sec.appendChild(h);
+            const list = document.createElement('div'); list.className = 'bp-goals';
+            blueprint.objectives.forEach(function(item){
+                const g = document.createElement('div'); g.className = 'bp-goal';
+                g.appendChild(iconEl('fas fa-circle-check'));
+                const sp = document.createElement('span'); sp.textContent = item; g.appendChild(sp);
+                list.appendChild(g);
+            });
+            sec.appendChild(list); wrap.appendChild(sec);
+        }
+
+        if (Array.isArray(blueprint.chapters) && blueprint.chapters.length) {
+            const sec = document.createElement('div'); sec.className = 'bp-section';
+            const h = document.createElement('div'); h.className = 'bp-section-title'; h.innerHTML = '<i class="fas fa-diagram-project"></i> 课程蓝图';
+            sec.appendChild(h);
+            blueprint.chapters.forEach(function(chapter, i){
+                const card = document.createElement('div'); card.className = 'bp-chapter';
+                const num = document.createElement('div'); num.className = 'bp-chapter-num'; num.textContent = (i + 1);
+                const main = document.createElement('div'); main.className = 'bp-chapter-main';
+                const t = document.createElement('div'); t.className = 'bp-chapter-title'; t.textContent = chapter.title || chapter.id || ('第' + (i + 1) + '章');
+                main.appendChild(t);
+                if (chapter.summary) { const s = document.createElement('div'); s.className = 'bp-chapter-summary'; s.textContent = chapter.summary; main.appendChild(s); }
+                const res = Array.isArray(chapter.resources) ? chapter.resources.join(' · ') : '';
+                const meta = document.createElement('div'); meta.className = 'bp-chapter-meta';
+                meta.textContent = '预计 ' + (chapter.estimated_hours || 0) + ' 小时' + (res ? ('　·　产出：' + res) : '');
+                main.appendChild(meta);
+                if (Array.isArray(chapter.objectives) && chapter.objectives.length) {
+                    const ul = document.createElement('ul'); ul.className = 'bp-chapter-goals';
+                    chapter.objectives.forEach(function(o){ const li = document.createElement('li'); li.textContent = o; ul.appendChild(li); });
+                    main.appendChild(ul);
+                }
+                card.appendChild(num); card.appendChild(main);
+                sec.appendChild(card);
+            });
+            wrap.appendChild(sec);
+        }
+        return wrap;
+    }
+
+    function renderOutline(od) {
+        const container = document.getElementById('outlineStructured');
+        const pre = document.getElementById('outlineContentPre');
+        if (!container) return;
+        container.innerHTML = '';
+        if (!od || Object.keys(od).length === 0) {
+            if (pre) pre.style.display = 'block';
+            container.innerHTML = '<div class="text-gray-600">暂无大纲内容</div>';
+            return;
+        }
+
+        // 顶部操作条：课程标题 + 「课程大纲 / 教学讲义」按钮（内容默认收起）
+        const actionbar = document.createElement('div'); actionbar.className = 'course-actionbar';
+        const abTitle = document.createElement('div'); abTitle.className = 'course-actionbar-title'; abTitle.textContent = od.title || '课程内容';
+        const abActions = document.createElement('div'); abActions.className = 'course-actionbar-actions';
+        actionbar.appendChild(abTitle); actionbar.appendChild(abActions);
+        container.appendChild(actionbar);
+
+        // 课程大纲（蓝图）→ 收到按钮后，点击打开精致弹层
+        const blueprint = od.blueprint || null;
+        if (blueprint) {
+            const btn = document.createElement('button'); btn.className = 'course-action-btn';
+            btn.innerHTML = '<i class="fas fa-sitemap"></i> 课程大纲';
+            btn.addEventListener('click', function(){ openInfoModal('课程大纲', buildBlueprintPanel(blueprint, od)); });
+            abActions.appendChild(btn);
+        }
+
+        if (Array.isArray(od.sections) && od.sections.length) {
+            od.sections.forEach(function(sectionData) {
+                const section = document.createElement('section');
+                section.className = 'p-4 bg-gray-50 rounded mb-4';
+                const title = document.createElement('div');
+                title.className = 'font-medium mb-2';
+                title.textContent = sectionData.title || '未命名部分';
+                const body = document.createElement('div');
+                body.className = 'text-sm text-slate-700';
+                body.textContent = sectionData.content || '';
+                section.appendChild(title);
+                section.appendChild(body);
+                container.appendChild(section);
+            });
+        }
+
+        const resources = Object.assign({}, od.resources || {});
+        if (!resources.animation && Array.isArray(od.animations) && od.animations.length) {
+            resources.animation = {
+                title: 'H5 动画',
+                items: od.animations,
+                preview: JSON.stringify(od.animations.map(function(item) {
+                    return {
+                        concept_name: item.concept_name,
+                        animation_type: item.animation_type,
+                        usage_note: item.usage_note,
+                    };
+                }))
+            };
+        }
+        // 内容审核 · 防幻觉总览面板（评委可见的机制证据）
+        const review = od.content_review;
+        if (review) {
+            const panel = document.createElement('div');
+            panel.className = 'content-review-panel';
+            const chips = [];
+            if (review.safety_filtered) chips.push('<span><i class="fas fa-shield-halved"></i> 内容安全过滤 ✔</span>');
+            const fc = review.fact_check;
+            if (fc && typeof fc.confidence === 'number') {
+                const col = fc.confidence >= 70 ? '#0c3a5f' : '#0e4470';
+                chips.push('<span style="color:' + col + '"><i class="fas fa-clipboard-check"></i> 事实校验置信度 ' + fc.confidence + '%' + (fc.reliable ? ' · 可信' : ' · 待核') + '</span>');
+            }
+            if (review.critic_rounds) chips.push('<span><i class="fas fa-user-shield"></i> 多智能体审核 ' + review.critic_rounds + ' 轮</span>');
+            if (Array.isArray(review.agents) && review.agents.length) chips.push('<span><i class="fas fa-people-group"></i> 协作智能体：' + review.agents.length + ' 个</span>');
+            panel.innerHTML = '<strong><i class="fas fa-clipboard-check"></i> 内容审核 · 防幻觉</strong>' + chips.join('');
+            if (fc && Array.isArray(fc.warnings) && fc.warnings.length) {
+                const w = document.createElement('div'); w.className = 'cr-warn';
+                w.textContent = '提示：' + fc.warnings.slice(0, 3).join('；');
+                panel.appendChild(w);
+            }
+            container.appendChild(panel);
+        }
+
+        // 资源类型 → 图标 + 中文标签（统一卡片头部）
+        const RES_META = {
+            ppt:      { icon: 'fa-chalkboard-user', label: '课件演示' },
+            animation:{ icon: 'fa-film',            label: '动态演示' },
+            mindmap:  { icon: 'fa-sitemap',         label: '思维导图' },
+            quiz:     { icon: 'fa-clipboard-question', label: '随堂练习' },
+            reading:  { icon: 'fa-book-open',        label: '拓展阅读' },
+            code:     { icon: 'fa-code',             label: '示例代码' },
+            doc:      { icon: 'fa-file-lines',       label: '教学讲义' },
+        };
+        function buildResHead(key, titleText, failed){
+            const head = document.createElement('div'); head.className = 'res-head';
+            const meta = RES_META[key] || { icon: 'fa-cube', label: key };
+            const badge = document.createElement('span'); badge.className = 'res-badge';
+            badge.innerHTML = '<i class="fas ' + (failed ? 'fa-triangle-exclamation' : meta.icon) + '"></i> ' + (failed ? '生成失败' : meta.label);
+            const t = document.createElement('span'); t.className = 'res-title'; t.textContent = titleText || meta.label;
+            head.appendChild(badge); head.appendChild(t);
+            return head;
+        }
+
+        // 收集各资源的"AI 生产过程"证据，最后聚合成一个独立分区（避免逐资源重复）
+        const processEntries = [];
+        const order = ['doc', 'ppt', 'animation', 'mindmap', 'quiz', 'reading', 'code'];
+        // 教学资源分区标题（与上方"内容审核"面板、下方"AI 生产过程"分区清晰分开）
+        var _hasAnyRes = order.some(function(k){ return resources[k]; });
+        if (_hasAnyRes) {
+            const rz = document.createElement('div');
+            rz.className = 'section-zone-title';
+            rz.innerHTML = '<i class="fas fa-layer-group"></i> 教学资源（多智能体生成）';
+            container.appendChild(rz);
+        }
+        order.forEach(function(key) {
+            const r = resources[key];
+            if (!r) return;
+
+            // 先收集"AI 生产过程"证据（要放在各分支 return 之前，否则 doc/失败资源的协作日志会被漏掉）
+            const _collab = (resources._collaboration_log || []).filter(function(e) { return e && e.resource_type === key; });
+            if (_collab.length || r.student_simulation) {
+                processEntries.push({ key: key, label: (RES_META[key] || {}).label || key, collab: _collab, sim: r.student_simulation, personalized: r.personalized });
+            }
+
+            // 某类资源生成失败：走统一卡片(红色失败态)，不展示空白/假内容
+            if (r.status === 'failed') {
+                const errSec = document.createElement('section');
+                errSec.className = 'res-card is-failed';
+                errSec.setAttribute('data-restype', key);
+                errSec.appendChild(buildResHead(key, r.title || (RES_META[key] || {}).label, true));
+                const msg = document.createElement('div'); msg.className = 'res-error';
+                msg.textContent = r.error || '生成失败，请重试';
+                errSec.appendChild(msg);
+                container.appendChild(errSec);
+                return;
+            }
+
+            const preview = r.preview || r.content || '';
+
+            // 教学讲义（doc）：默认收起到"教学讲义"按钮里，点击打开阅读弹层
+            if (key === 'doc') {
+                // 用完整 content（此前误用了截断到 500 字的 preview，导致讲义看起来很简陋）
+                const full = r.content || r.preview || preview || '';
+                const docBody = document.createElement('div'); docBody.className = 'doc-reader';
+                try { renderRich(docBody, full); }
+                catch(e) { docBody.textContent = full; }
+                const btn = document.createElement('button'); btn.className = 'course-action-btn';
+                btn.innerHTML = '<i class="fas fa-book-open"></i> 教学讲义';
+                btn.addEventListener('click', function(){ openInfoModal(r.title || '教学讲义', docBody); });
+                abActions.appendChild(btn);
+                return;
+            }
+
+            const section = document.createElement('section');
+            section.className = 'res-card';
+            section.setAttribute('data-restype', key);
+            section.appendChild(buildResHead(key, r.title || (RES_META[key] || {}).label, false));
+
+            if (key === 'ppt') {
+                const structuredSlides = (r.structured_slides && Array.isArray(r.structured_slides) && r.structured_slides.length)
+                    ? r.structured_slides
+                    : ((od.slide_deck && Array.isArray(od.slide_deck) && od.slide_deck.length) ? od.slide_deck : null);
+                const slides = structuredSlides || ((r.slides && Array.isArray(r.slides) && r.slides.length) ? r.slides : parseSlides(preview));
+                const deck = document.createElement('div'); deck.className = 'slide-deck';
+
+                // background layer
+                const deckBg = document.createElement('div'); deckBg.className = 'deck-bg';
+                deck.appendChild(deckBg);
+
+                // toolbar: 全屏、自动播放、速度、背景切换
+                const toolbar = document.createElement('div'); toolbar.className = 'deck-toolbar flex items-center gap-2 mb-2';
+                const fsBtn = document.createElement('button'); fsBtn.className='btn-secondary btn-inline'; fsBtn.textContent='全屏播放';
+                const autoBtn = document.createElement('button'); autoBtn.className='btn-secondary btn-inline'; autoBtn.textContent='自动播放';
+                const narrateToggle = document.createElement('button'); narrateToggle.className='btn-secondary btn-inline narrate-toggle on'; narrateToggle.innerHTML='<i class="fas fa-user-graduate"></i> 数字人讲解';
+                const presenterToggle = document.createElement('button'); presenterToggle.className='btn-secondary btn-inline presenter-toggle'; presenterToggle.innerHTML='<i class="fas fa-chalkboard-user"></i> 讲解面板';
+                const speedSel = document.createElement('select'); speedSel.className = 'speed-select';
+                [3000,5000,7000].forEach(v=>{ const o=document.createElement('option'); o.value=v; o.textContent=(v/1000)+'s'; if(v===5000) o.selected=true; speedSel.appendChild(o); });
+                const themeToggle = document.createElement('button'); themeToggle.className='btn-secondary'; themeToggle.textContent='切换背景';
+                const toolbarRight = document.createElement('div'); toolbarRight.className='toolbar-right';
+                toolbar.appendChild(fsBtn); toolbar.appendChild(narrateToggle); toolbar.appendChild(autoBtn); toolbar.appendChild(presenterToggle); toolbarRight.appendChild(speedSel); toolbarRight.appendChild(themeToggle); toolbar.appendChild(toolbarRight);
+                deck.appendChild(toolbar);
+
+                // 使 deck 可聚焦以接收键盘事件；但点在"问 AI"输入框/按钮等交互控件上时不要抢焦点，
+                // 否则用户点输入框打不了字、空格/方向键会被当成翻页
+                deck.setAttribute('tabindex','0');
+                deck.addEventListener('click', function(e){
+                    if (e.target && e.target.closest('input, textarea, button, select, a, [contenteditable="true"]')) return;
+                    deck.focus();
+                });
+
+                // 尝试设置背景图（基于 outlineTitle），使用后端缓存代理
+                try{
+                    const kw = (outlineTitle || '').split(' ')[0] || 'education';
+                    deckBg.style.backgroundImage = `url(/curriculum/background/${encodeURIComponent(kw)}/)`;
+                } catch(e){}
+
+                const slidesWrap = document.createElement('div'); slidesWrap.className = 'slides-wrap';
+                slides.forEach(function(slideItem, idx){
+                    const s = document.createElement('div'); s.className = 'slide';
+                    s.dataset.page = String(idx + 1).padStart(2, '0');
+                    if (idx===0) s.classList.add('active');
+                    if (slideItem && typeof slideItem === 'object') {
+                        s.classList.add('courseware-slide');
+                        s.dataset.layout = slideItem.layout || slideItem.type || 'two_column';
+                        s.dataset.theme = slideItem.theme || 'academic_light';
+                    }
+                    const inner = renderCoursewareSlide(slideItem);
+                    s.appendChild(inner);
+                    // 隐藏 bullets 以便分步动画
+                    inner.querySelectorAll && inner.querySelectorAll('li') && inner.querySelectorAll('li').forEach(li => li.style.opacity = '0');
+                    slidesWrap.appendChild(s);
+                });
+
+                // 舞台：幻灯片 + 右侧"老师讲解面板"
+                const stage = document.createElement('div'); stage.className = 'deck-stage';
+                stage.appendChild(slidesWrap);
+
+                const presenter = document.createElement('div'); presenter.className = 'presenter-panel collapsed';
+                const pHead = document.createElement('div'); pHead.className = 'presenter-head';
+                pHead.appendChild(iconEl('fas fa-chalkboard-user'));
+                pHead.appendChild(document.createTextNode(' 老师讲解'));
+                const pBody = document.createElement('div'); pBody.className = 'presenter-body';
+                presenter.appendChild(pHead); presenter.appendChild(pBody);
+                stage.appendChild(presenter);
+                deck.appendChild(stage);
+
+                function presenterSection(cls, iconCls, label, text) {
+                    const sec = document.createElement('div'); sec.className = 'presenter-sec ' + cls;
+                    const lab = document.createElement('div'); lab.className = 'presenter-sec-label';
+                    lab.appendChild(iconEl(iconCls)); lab.appendChild(document.createTextNode(' ' + label));
+                    const txt = document.createElement('div'); txt.className = (cls === 'notes' ? 'presenter-notes' : 'presenter-sec-text');
+                    txt.textContent = text;
+                    sec.appendChild(lab); sec.appendChild(txt);
+                    return sec;
+                }
+                function updatePresenter(i) {
+                    const sl = slides[i] || {};
+                    pBody.innerHTML = '';
+                    if ((sl.teaching_goal || '').trim()) {
+                        pBody.appendChild(presenterSection('goal', 'fas fa-bullseye', '教学目标', sl.teaching_goal.trim()));
+                    }
+                    const notes = (sl.speaker_notes || '').trim();
+                    if (notes) {
+                        pBody.appendChild(presenterSection('notes', 'fas fa-comment-dots', '讲解词', notes));
+                    } else if (!(sl.teaching_goal || '').trim()) {
+                        const empty = document.createElement('div'); empty.className = 'presenter-empty';
+                        empty.textContent = '这一页没有额外的讲解备注。'; pBody.appendChild(empty);
+                    }
+                    if ((sl.teacher_action || '').trim()) {
+                        pBody.appendChild(presenterSection('action', 'fas fa-hand-pointer', '老师动作', sl.teacher_action.trim()));
+                    }
+                    const inter = (sl.student_interaction || sl.interaction_hint || '').trim();
+                    if (inter) {
+                        pBody.appendChild(presenterSection('inter', 'fas fa-users', '学生活动', inter));
+                    }
+                }
+                presenterToggle.addEventListener('click', function(){
+                    presenter.classList.toggle('collapsed');
+                    presenterToggle.classList.toggle('on', !presenter.classList.contains('collapsed'));
+                });
+
+                // 为quiz页面添加提交按钮和评估逻辑
+                slides.forEach(function(slideItem, slideIdx) {
+                    const isQuizPage = slideItem.layout === 'quiz_check' || 
+                                      (slideItem.visual_blocks && slideItem.visual_blocks.some(b => b.kind === 'question'));
+                    
+                    if (isQuizPage) {
+                        const slideEl = slidesWrap.querySelectorAll('.slide')[slideIdx];
+                        if (!slideEl) return;
+
+                        // 只有存在可自动评分的选择题块才加"提交答案"按钮；
+                        // 纯开放"思考题"(courseware-prompt-block)已内联显示参考思路，无需提交，避免点击无反应
+                        if (slideEl.querySelectorAll('.courseware-quiz-block').length === 0) return;
+
+                        // 添加提交按钮
+                        const submitBtn = document.createElement('button');
+                        submitBtn.className = 'quiz-submit-btn';
+                        submitBtn.textContent = '提交答案';
+                        submitBtn.dataset.slideIndex = slideIdx;
+                        
+                        submitBtn.addEventListener('click', function() {
+                            const currentSlide = slidesWrap.querySelectorAll('.slide')[slideIdx];
+                            const questionBlocks = currentSlide.querySelectorAll('.courseware-quiz-block');
+                            
+                            if (questionBlocks.length === 0) return;
+                            
+                            let correctCount = 0;
+                            let totalCount = questionBlocks.length;
+                            
+                            questionBlocks.forEach(function(qBlock, qIndex) {
+                                const radios = qBlock.querySelectorAll('input[type="radio"]');
+                                let selectedValue = null;
+                                
+                                radios.forEach(function(radio) {
+                                    if (radio.checked) {
+                                        selectedValue = radio.value;
+                                    }
+                                });
+                                
+                                const correctAnswer = qBlock.dataset.correctAnswer;
+                                const answerContainer = qBlock.querySelector('.quiz-answer-container');
+                                
+                                // 标记选项的正确/错误状态
+                                radios.forEach(function(radio) {
+                                    const optionDiv = radio.closest('.quiz-option');
+                                    if (radio.value === correctAnswer) {
+                                        optionDiv.classList.add('correct');
+                                    } else if (radio.checked && radio.value !== correctAnswer) {
+                                        optionDiv.classList.add('incorrect');
+                                    }
+                                    radio.disabled = true;
+                                });
+                                
+                                // 显示答案和解析
+                                if (answerContainer) {
+                                    answerContainer.style.display = 'block';
+                                    
+                                    if (selectedValue === correctAnswer) {
+                                        correctCount++;
+                                        answerContainer.style.borderLeftColor = '#3b82f6';
+                                    } else {
+                                        answerContainer.style.borderLeftColor = '#ef4444';
+                                        const userAnswer = document.createElement('div');
+                                        userAnswer.className = 'quiz-user-answer';
+                                        userAnswer.style.color = '#ef4444';
+                                        userAnswer.style.marginTop = '8px';
+                                        userAnswer.textContent = '你的答案: ' + (selectedValue || '未作答');
+                                        answerContainer.insertBefore(userAnswer, answerContainer.firstChild);
+                                    }
+                                }
+                            });
+                            
+                            // 显示结果横幅
+                            const score = Math.round((correctCount / totalCount) * 100);
+                            const resultBanner = document.createElement('div');
+                            resultBanner.className = 'quiz-result-banner';
+                            
+                            if (score === 100) {
+                                resultBanner.classList.add('excellent');
+                                resultBanner.textContent = `🎉 完美！全部正确！得分: ${score}% (${correctCount}/${totalCount})`;
+                            } else if (score >= 60) {
+                                resultBanner.classList.add('good');
+                                resultBanner.textContent = `👍 不错！得分: ${score}% (${correctCount}/${totalCount})，继续加油！`;
+                            } else {
+                                resultBanner.classList.add('need-improve');
+                                resultBanner.textContent = `💪 需要复习！得分: ${score}% (${correctCount}/${totalCount})，建议重新学习相关内容。`;
+                            }
+                            
+                            const coursewareInner = currentSlide.querySelector('.courseware-inner');
+                            if (coursewareInner) {
+                                coursewareInner.insertBefore(resultBanner, coursewareInner.firstChild);
+                            }
+                            
+                            // 禁用提交按钮
+                            submitBtn.disabled = true;
+                            submitBtn.textContent = '已提交';
+                        });
+                        
+                        // 将按钮添加到slide的inner中
+                        const inner = slideEl.querySelector('.courseware-inner');
+                        if (inner) {
+                            inner.appendChild(submitBtn);
+                        }
+                    }
+                });
+
+                // progress bar
+                const progressWrap = document.createElement('div'); progressWrap.className = 'slide-progress';
+                const fill = document.createElement('div'); fill.className = 'progress-fill'; progressWrap.appendChild(fill);
+                deck.appendChild(progressWrap);
+
+                // thumbs
+                const thumbs = document.createElement('div'); thumbs.className = 'thumbs';
+                slides.forEach(function(slideItem, idx){
+                    const th = document.createElement('button'); th.className='thumb'; th.dataset.index = idx;
+                    th.dataset.theme = (slideItem && typeof slideItem === 'object' && slideItem.theme) ? slideItem.theme : 'academic_light';
+                    if(idx===0) th.classList.add('active');
+                    const ti = document.createElement('div'); ti.className='tindex'; ti.textContent = `${idx+1}`;
+                    th.setAttribute('aria-label', '第 ' + (idx + 1) + ' 页');
+                    th.appendChild(ti);
+                    th.addEventListener('click', ()=>{ show(parseInt(th.dataset.index)); pauseAutoPresent(); });
+                    thumbs.appendChild(th);
+                });
+                deck.appendChild(thumbs);
+
+                const nav = document.createElement('div'); nav.className = 'slide-nav';
+                const prev = document.createElement('button'); prev.className = 'btn-secondary'; prev.textContent = '上一页';
+                const next = document.createElement('button'); next.className = 'btn-primary'; next.textContent = '下一页';
+                const counter = document.createElement('div'); counter.className = 'slide-counter'; counter.textContent = `1 / ${slides.length}`;
+                nav.appendChild(prev); nav.appendChild(next); nav.appendChild(counter);
+
+                let cur = 0; let autoplayTimer = null; let bulletTimers = [];
+                // 数字人讲解 + 自动放映状态（提前声明，避免 show() 里的钩子命中 TDZ）
+                let narrationOn = true; let narrationMuted = false; let autoPlayOn = true; let narrationResumeAfterAi = false;
+                function clearBulletTimers(){ bulletTimers.forEach(t=>clearTimeout(t)); bulletTimers = []; }
+                function show(i, animateBullets=true){
+                    const all = slidesWrap.querySelectorAll('.slide');
+                    if(i<0) i=0; if(i>=all.length) i=all.length-1;
+                    all.forEach((el, idx)=> el.classList.toggle('active', idx===i));
+                    cur = i; counter.textContent = `${i+1} / ${all.length}`;
+                    updatePresenter(i);
+                    if (typeof syncAiContext === 'function') syncAiContext(i);
+                    // 数字人讲解：进入某页即朗读该页讲稿（narratePage 内部会先取消上一页朗读）
+                    if (narrationOn && typeof narratePage === 'function') narratePage(i);
+                    // update progress
+                    const pct = Math.round(((i+1)/all.length)*100);
+                    fill.style.width = pct + '%';
+                    // update thumbs
+                    const ths = thumbs.querySelectorAll('.thumb'); ths.forEach((tt, idx)=> tt.classList.toggle('active', idx===i));
+                    // 卡片错落入场动画
+                    const animEls = all[i].querySelectorAll('.courseware-block, .courseware-cover-hero, .courseware-cover-panel');
+                    animEls.forEach(function(el, idx){
+                        el.style.animation = 'none';
+                        void el.offsetHeight;
+                        el.style.animation = '';
+                        el.style.animationDelay = (idx * 70) + 'ms';
+                    });
+                    // bullet 分步动画
+                    clearBulletTimers();
+                    if(animateBullets){
+                        const lis = all[i].querySelectorAll('li');
+                        lis.forEach((li, idx)=>{
+                            li.style.opacity = '0';
+                            const t = setTimeout(()=>{ li.style.transition = 'opacity .4s'; li.style.opacity = '1'; }, idx*450);
+                            bulletTimers.push(t);
+                        });
+                    } else {
+                        const lis = all[i].querySelectorAll('li'); lis.forEach(li=> li.style.opacity='1');
+                    }
+                }
+
+                prev.addEventListener('click', ()=> { show(Math.max(0, cur-1)); pauseAutoPresent(); });
+                next.addEventListener('click', ()=> { show(Math.min(slides.length-1, cur+1)); pauseAutoPresent(); });
+
+                function setFullscreenState(active) {
+                    deck.classList.toggle('is-fullscreen', !!active);
+                    fsBtn.textContent = active ? '退出全屏' : '全屏播放';
+                    if (active) {
+                        setTimeout(()=>{ try{ deck.focus(); }catch(e){} }, 50);
+                        show(cur, false);
+                    }
+                }
+
+                function enterFullscreen() {
+                    if (deck.requestFullscreen) {
+                        deck.requestFullscreen().catch(function(){ setFullscreenState(true); });
+                    } else {
+                        setFullscreenState(true);
+                    }
+                }
+
+                function exitFullscreen() {
+                    if (document.fullscreenElement === deck && document.exitFullscreen) {
+                        document.exitFullscreen();
+                    } else {
+                        setFullscreenState(false);
+                    }
+                }
+
+                fsBtn.addEventListener('click', ()=>{
+                    if (document.fullscreenElement === deck || deck.classList.contains('is-fullscreen')) exitFullscreen();
+                    else enterFullscreen();
+                });
+                // fullscreenchange 挂在 document 上；生成中每次 renderOutline 重建 deck 会重复绑定，
+                // 故先移除上一次的 handler，只保留指向当前 deck 的这一个，避免监听器泄漏
+                if (window.__deckFsHandler) { try { document.removeEventListener('fullscreenchange', window.__deckFsHandler); } catch(e){} }
+                window.__deckFsHandler = function(){ setFullscreenState(document.fullscreenElement === deck); };
+                document.addEventListener('fullscreenchange', window.__deckFsHandler);
+
+                // 自动放映：数字人开时由"讲完本页"驱动翻页；数字人关时用定时器（speedSel 秒数）翻页
+                function startAutoplay(){
+                    const speed = parseInt(speedSel.value) || 5000;
+                    if(autoplayTimer) clearInterval(autoplayTimer);
+                    autoplayTimer = setInterval(()=>{ show(Math.min(slides.length-1, cur+1)); if(cur>=slides.length-1){ stopAutoplay(); } }, speed);
+                }
+                function stopAutoplay(){ if(autoplayTimer){ clearInterval(autoplayTimer); autoplayTimer=null; } }
+                function refreshAutoBtn(){
+                    autoBtn.innerHTML = '';
+                    autoBtn.appendChild(iconEl(autoPlayOn ? 'fas fa-circle-pause' : 'fas fa-circle-play'));
+                    autoBtn.appendChild(document.createTextNode(autoPlayOn ? ' 自动放映中' : ' 自动放映'));
+                    autoBtn.classList.toggle('on', autoPlayOn);
+                }
+                function applyAutoPlay(){
+                    stopAutoplay();
+                    if (autoPlayOn && !narrationOn) startAutoplay();  // 无数字人时用定时器翻页
+                    // 有数字人时，翻页由讲完本页驱动（见 narratePage 的 onEnd，受 autoPlayOn 控制）
+                }
+                // 手动翻页（按钮/缩略图/键盘）时暂停自动推进：既要停定时器，也要关掉 autoPlayOn，
+                // 否则数字人模式下 narratePage 的 onEnd 仍会继续翻页，且按钮状态与实际不同步
+                function pauseAutoPresent(){
+                    stopAutoplay();
+                    if (autoPlayOn) { autoPlayOn = false; refreshAutoBtn(); }
+                }
+                autoBtn.addEventListener('click', function(){
+                    autoPlayOn = !autoPlayOn;
+                    refreshAutoBtn();
+                    applyAutoPlay();
+                    // 刚打开自动放映、数字人在岗但没在讲 → 立刻开讲当前页，把自动流程串起来
+                    if (autoPlayOn && narrationOn && !avatarStage.classList.contains('speaking')) narratePage(cur);
+                });
+
+                // theme toggle cycles keywords and uses backend proxy
+                let themeIdx=0; const themeKeywords = [(outlineTitle||'education'), 'blackboard', 'classroom', 'technology'];
+                themeToggle.addEventListener('click', ()=>{ themeIdx=(themeIdx+1)%themeKeywords.length; try{ const kw=themeKeywords[themeIdx]; deckBg.style.backgroundImage = `url(/curriculum/background/${encodeURIComponent(kw)}/)`; }catch(e){} });
+
+                function handleDeckKeydown(e) {
+                    // 正在输入框/文本域打字时（如全屏下向 AI 提问），不要劫持空格/方向键/F 等按键
+                    const t = e.target;
+                    if (t && (t.tagName === 'TEXTAREA' || t.tagName === 'INPUT' || t.isContentEditable)) return;
+                    const activeFullscreen = document.fullscreenElement === deck || deck.classList.contains('is-fullscreen');
+                    if (!activeFullscreen && document.activeElement !== deck) return;
+                    if(e.key === 'ArrowLeft' || e.key === 'PageUp'){
+                        e.preventDefault();
+                        show(Math.max(0, cur-1));
+                        pauseAutoPresent();
+                    }
+                    if(e.key === 'ArrowRight' || e.key === 'PageDown' || e.key === ' '){
+                        e.preventDefault();
+                        show(Math.min(slides.length-1, cur+1));
+                        pauseAutoPresent();
+                    }
+                    if(e.key === 'Home'){
+                        e.preventDefault();
+                        show(0);
+                        pauseAutoPresent();
+                    }
+                    if(e.key === 'End'){
+                        e.preventDefault();
+                        show(slides.length - 1);
+                        pauseAutoPresent();
+                    }
+                    if(e.key === 'f' || e.key === 'F'){
+                        e.preventDefault();
+                        if (activeFullscreen) exitFullscreen(); else enterFullscreen();
+                    }
+                    if(e.key === 'Escape' && deck.classList.contains('is-fullscreen')){
+                        e.preventDefault();
+                        exitFullscreen();
+                    }
+                }
+
+                // 只挂在 deck 上：事件会冒泡到 deck，守卫已要求 deck 聚焦/全屏。
+                // 之前同时挂 document 会导致每次按键翻两页，且 document 监听器在每次重渲染时泄漏累积。
+                deck.setAttribute('tabindex', deck.getAttribute('tabindex') || '0');
+                deck.addEventListener('keydown', handleDeckKeydown);
+
+                // ===== 数字人主讲老师（朗读每页 speaker_notes）=====
+                // TTS 抽象层：当前用浏览器 Web Speech API；日后补齐讯飞凭据后只需替换取声实现。
+                const _synth = window.speechSynthesis;
+                const _ttsSupported = !!_synth && (typeof SpeechSynthesisUtterance !== 'undefined');
+                let _zhVoice = null;
+                function _pickVoice(){
+                    if (!_ttsSupported) return;
+                    const vs = _synth.getVoices() || [];
+                    _zhVoice = vs.find(function(v){ return /^zh/i.test(v.lang || ''); })
+                            || vs.find(function(v){ return (v.lang || '').toLowerCase().indexOf('cn') >= 0; }) || null;
+                }
+                if (_ttsSupported){ _pickVoice(); try { _synth.onvoiceschanged = _pickVoice; } catch(e){} }
+
+                let _speakSeq = 0; let _keepAlive = null;
+                function _stopKeep(){ if (_keepAlive){ clearInterval(_keepAlive); _keepAlive = null; } }
+                function cancelSpeak(){
+                    _speakSeq++; _stopKeep();
+                    try { if (_ttsSupported) _synth.cancel(); } catch(e){}
+                    if (avatarStage) avatarStage.classList.remove('speaking');
+                    if (subtitle) subtitle.classList.remove('show');
+                }
+                function speak(text, onEnd){
+                    cancelSpeak();
+                    const clean = (text || '').trim();
+                    if (!clean){ if (onEnd) onEnd(); return; }
+                    const seq = ++_speakSeq;
+                    // 按句末标点切句（不用 lookbehind，兼容旧版 Safari）：在标点后插入分隔符再 split
+                    const sentences = (clean.match(/[^。！？!?；;\n]+[。！？!?；;\n]*/g) || [clean]).map(function(s){ return s.trim(); }).filter(Boolean);
+                    if (!sentences.length) sentences.push(clean);
+                    avatarStage.classList.add('speaking');
+                    const sv = parseInt(speedSel.value) || 5000;
+                    const rate = sv <= 3000 ? 1.15 : (sv >= 7000 ? 0.85 : 1.0);
+                    const useAudio = _ttsSupported && _zhVoice && !narrationMuted;
+                    avatarHint.style.display = (_ttsSupported && _zhVoice) ? 'none' : 'block';
+                    let idx = 0;
+                    function finish(){ _stopKeep(); if (seq !== _speakSeq) return; avatarStage.classList.remove('speaking'); subtitle.classList.remove('show'); if (onEnd) onEnd(); }
+                    function showSub(s){ subtitle.textContent = s; subtitle.classList.add('show'); }
+                    if (!useAudio){
+                        // 降级：无中文语音或静音 → 仅动画 + 字幕（按字数估时逐句显示）
+                        (function step(){
+                            if (seq !== _speakSeq) return;
+                            if (idx >= sentences.length){ finish(); return; }
+                            showSub(sentences[idx]);
+                            const dur = Math.max(1300, sentences[idx].length * 180);
+                            setTimeout(function(){ idx++; step(); }, dur);
+                        })();
+                        return;
+                    }
+                    _keepAlive = setInterval(function(){ try{ if (_synth.speaking) _synth.resume(); }catch(e){} }, 10000); // 绕过 Chrome 15s 暂停
+                    (function speakNext(){
+                        if (seq !== _speakSeq) return;
+                        if (idx >= sentences.length){ finish(); return; }
+                        const u = new SpeechSynthesisUtterance(sentences[idx]);
+                        u.lang = 'zh-CN'; if (_zhVoice) u.voice = _zhVoice; u.rate = rate; u.pitch = 1.02;
+                        showSub(sentences[idx]);
+                        u.onend = function(){ if (seq !== _speakSeq) return; idx++; speakNext(); };
+                        u.onerror = function(){ if (seq !== _speakSeq) return; idx++; speakNext(); };
+                        try { _synth.speak(u); } catch(e){ idx++; speakNext(); }
+                    })();
+                }
+
+                // 数字人形象（SVG 卡通老师）+ 名牌 + 控制 + 字幕，放进幻灯片视口内
+                const avatarDock = document.createElement('div'); avatarDock.className = 'avatar-dock';
+                const avatarStage = document.createElement('div'); avatarStage.className = 'avatar-stage';
+                avatarStage.innerHTML = '<svg viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">'
+                    + '<path d="M16 120 Q16 90 60 90 Q104 90 104 120 Z" fill="#2563eb"/>'
+                    + '<path d="M42 120 Q60 104 78 120 Z" fill="#1d4ed8"/>'
+                    + '<rect x="52" y="82" width="16" height="14" rx="6" fill="#f2c9a0"/>'
+                    + '<g class="avatar-head">'
+                    + '<ellipse cx="60" cy="52" rx="33" ry="35" fill="#3b2a20"/>'
+                    + '<ellipse cx="60" cy="56" rx="27" ry="29" fill="#f6d3b0"/>'
+                    + '<path d="M30 50 Q33 22 60 22 Q87 22 90 50 Q78 37 60 37 Q42 37 30 50 Z" fill="#3b2a20"/>'
+                    + '<ellipse cx="34" cy="58" rx="5" ry="7" fill="#f6d3b0"/><ellipse cx="86" cy="58" rx="5" ry="7" fill="#f6d3b0"/>'
+                    + '<rect x="43" y="45" width="13" height="3" rx="1.5" fill="#3b2a20"/><rect x="64" y="45" width="13" height="3" rx="1.5" fill="#3b2a20"/>'
+                    + '<g class="avatar-eyes"><circle cx="50" cy="55" r="3.6" fill="#20303f"/><circle cx="70" cy="55" r="3.6" fill="#20303f"/></g>'
+                    + '<circle cx="50" cy="55" r="8" fill="none" stroke="#0c2238" stroke-width="2"/><circle cx="70" cy="55" r="8" fill="none" stroke="#0c2238" stroke-width="2"/><line x1="58" y1="55" x2="62" y2="55" stroke="#0c2238" stroke-width="2"/>'
+                    + '<path d="M60 59 l-3 8 h6 Z" fill="#e6b98f"/>'
+                    + '<ellipse class="avatar-mouth" cx="60" cy="75" rx="8" ry="5" fill="#a83a3a"/>'
+                    + '</g></svg>';
+                const avatarName = document.createElement('div'); avatarName.className = 'avatar-name'; avatarName.textContent = '小讲老师';
+                const avatarCtrls = document.createElement('div'); avatarCtrls.className = 'avatar-ctrls';
+                const narPlayBtn = document.createElement('button'); narPlayBtn.appendChild(iconEl('fas fa-play')); narPlayBtn.title = '继续讲解';
+                const narMuteBtn = document.createElement('button'); narMuteBtn.appendChild(iconEl('fas fa-volume-high')); narMuteBtn.title = '静音';
+                const narReplayBtn = document.createElement('button'); narReplayBtn.appendChild(iconEl('fas fa-rotate-right')); narReplayBtn.title = '重讲本页';
+                avatarCtrls.appendChild(narPlayBtn); avatarCtrls.appendChild(narMuteBtn); avatarCtrls.appendChild(narReplayBtn);
+                const avatarHint = document.createElement('div'); avatarHint.className = 'avatar-hint'; avatarHint.textContent = '本设备暂无中文语音，仅显示字幕';
+                avatarDock.appendChild(avatarStage); avatarDock.appendChild(avatarName); avatarDock.appendChild(avatarCtrls); avatarDock.appendChild(avatarHint);
+                const subtitle = document.createElement('div'); subtitle.className = 'subtitle-bar';
+                slidesWrap.appendChild(avatarDock); slidesWrap.appendChild(subtitle);
+
+                function setPlayIcon(playing){
+                    narPlayBtn.innerHTML = ''; narPlayBtn.appendChild(iconEl(playing ? 'fas fa-pause' : 'fas fa-play'));
+                    narPlayBtn.title = playing ? '暂停讲解' : '继续讲解';
+                }
+                function narratePage(i){
+                    if (!narrationOn) return;
+                    const sl = slides[i] || {};
+                    let notes = (sl.speaker_notes || '').trim();
+                    if (!notes) notes = sl.title ? ('这一页我们看：' + sl.title + '。') : '我们继续看这一页。';
+                    setPlayIcon(true);
+                    speak(notes, function(){
+                        if (narrationOn && autoPlayOn && cur === i && i < slides.length - 1) { show(i + 1); }
+                        else { setPlayIcon(false); }
+                    });
+                }
+                narPlayBtn.addEventListener('click', function(){
+                    if (avatarStage.classList.contains('speaking')) { cancelSpeak(); setPlayIcon(false); }
+                    else { narratePage(cur); }
+                });
+                narMuteBtn.addEventListener('click', function(){
+                    narrationMuted = !narrationMuted;
+                    narMuteBtn.innerHTML = ''; narMuteBtn.appendChild(iconEl(narrationMuted ? 'fas fa-volume-xmark' : 'fas fa-volume-high'));
+                    if (avatarStage.classList.contains('speaking')) narratePage(cur);
+                });
+                narReplayBtn.addEventListener('click', function(){ narratePage(cur); });
+                function setNarrationEnabled(on){
+                    narrationOn = on;
+                    narrateToggle.classList.toggle('on', on);
+                    avatarDock.classList.toggle('hidden', !on);
+                    if (!on) { cancelSpeak(); setPlayIcon(false); }
+                    applyAutoPlay();  // 数字人开/关时切换"讲完驱动 / 定时器驱动"的自动放映
+                }
+                narrateToggle.addEventListener('click', function(){ setNarrationEnabled(!narrationOn); if (narrationOn) narratePage(cur); });
+                refreshAutoBtn();  // 初始化"自动放映"按钮状态（默认开）
+
+                // ===== 播放中与 AI 对话（就当前这页提问）=====
+                let aiConvId = null;
+                const aiFab = document.createElement('button'); aiFab.className='ai-fab';
+                aiFab.appendChild(iconEl('fas fa-robot')); aiFab.appendChild(document.createTextNode(' 问 AI'));
+                const aiDock = document.createElement('div'); aiDock.className='ai-dock';
+                const aiHead = document.createElement('div'); aiHead.className='ai-dock-head';
+                aiHead.appendChild(iconEl('fas fa-robot'));
+                const aiTitle = document.createElement('span'); aiTitle.textContent='课堂助教'; aiHead.appendChild(aiTitle);
+                const ctxLabel = document.createElement('span'); ctxLabel.className='ctx'; aiHead.appendChild(ctxLabel);
+                const aiCloseBtn = document.createElement('button'); aiCloseBtn.className='ai-close'; aiCloseBtn.innerHTML='&times;'; aiHead.appendChild(aiCloseBtn);
+                const aiBody = document.createElement('div'); aiBody.className='ai-dock-body';
+                const aiHint = document.createElement('div'); aiHint.className='ai-dock-hint'; aiHint.textContent='对当前这页有疑问？直接问我。';
+                aiBody.appendChild(aiHint);
+                const aiFoot = document.createElement('div'); aiFoot.className='ai-dock-foot';
+                const aiInput = document.createElement('textarea'); aiInput.placeholder='就这一页提问，回车发送…';
+                const aiSend = document.createElement('button'); aiSend.textContent='发送';
+                aiFoot.appendChild(aiInput); aiFoot.appendChild(aiSend);
+                aiDock.appendChild(aiHead); aiDock.appendChild(aiBody); aiDock.appendChild(aiFoot);
+                deck.appendChild(aiFab); deck.appendChild(aiDock);
+
+                function syncAiContext(i) { if (ctxLabel) ctxLabel.textContent = '第 ' + (i + 1) + ' 页'; }
+                function openAi(){
+                    // 学生提问时主讲暂停，两位老师不抢话
+                    narrationResumeAfterAi = avatarStage.classList.contains('speaking');
+                    cancelSpeak(); setPlayIcon(false);
+                    aiDock.classList.add('open'); aiFab.style.display='none';
+                    setTimeout(function(){ try{ aiInput.focus(); }catch(e){} }, 60);
+                }
+                function closeAi(){
+                    aiDock.classList.remove('open'); aiFab.style.display='';
+                    if (narrationResumeAfterAi && narrationOn) { narrationResumeAfterAi = false; narratePage(cur); }
+                }
+                aiFab.addEventListener('click', openAi);
+                aiCloseBtn.addEventListener('click', closeAi);
+
+                function aiAppend(role, text) {
+                    const m = document.createElement('div'); m.className = 'ai-msg ' + role;
+                    m.textContent = text; aiBody.appendChild(m); aiBody.scrollTop = aiBody.scrollHeight;
+                    return m;
+                }
+                let aiBusy = false;
+                function aiAsk() {
+                    const q = aiInput.value.trim();
+                    if (!q || aiBusy) return;
+                    aiBusy = true; aiSend.disabled = true; aiInput.value = '';
+                    aiAppend('user', q);
+                    const thinking = aiAppend('bot thinking', '正在思考…');
+                    const sl = slides[cur] || {};
+                    const contextLine = '【学生正在看第' + (cur + 1) + '页：' + (sl.title || '') + '】';
+                    const bulletHint = (Array.isArray(sl.bullets) && sl.bullets.length) ? ('\n本页要点：' + sl.bullets.slice(0, 4).join('；')) : '';
+                    const payloadText = contextLine + bulletHint + '\n学生的问题：' + q;
+                    fetch('/agent/api/conversation/send/', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken') },
+                        body: JSON.stringify({ text: payloadText, conversation_id: aiConvId, mode: 'ta', recent_topics: (outlineTitle || '') + ' / ' + (sl.title || '') })
+                    }).then(function(r){ return r.json(); }).then(function(data){
+                        thinking.remove();
+                        const reply = data && (data.assistant || data.reply || data.content);
+                        if (reply) { aiConvId = data.conversation_id || aiConvId; aiAppend('bot', reply); }
+                        else { aiAppend('bot', (data && data.error) ? data.error : '抱歉，我暂时没法回答，请稍后再试。'); }
+                    }).catch(function(){ thinking.remove(); aiAppend('bot', '网络出错了，请稍后再试。'); })
+                      .then(function(){ aiBusy = false; aiSend.disabled = false; try{ aiInput.focus(); }catch(e){} });
+                }
+                aiSend.addEventListener('click', aiAsk);
+                aiInput.addEventListener('keydown', function(e){ if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); aiAsk(); } });
+
+                // ===== 全屏开场：一键放映 =====
+                const startOverlay = document.createElement('div'); startOverlay.className = 'deck-start-overlay';
+                const dsTitle = document.createElement('div'); dsTitle.className = 'ds-title'; dsTitle.textContent = outlineTitle || '教学课件';
+                const dsSub = document.createElement('div'); dsSub.className = 'ds-sub';
+                dsSub.textContent = '共 ' + slides.length + ' 页。建议全屏放映，播放中随时点右下角“问 AI”就当前这页提问。';
+                const dsPlay = document.createElement('button'); dsPlay.className = 'ds-play';
+                dsPlay.appendChild(iconEl('fas fa-play')); dsPlay.appendChild(document.createTextNode(' 全屏放映'));
+                const dsSecondary = document.createElement('div'); dsSecondary.className = 'ds-secondary';
+                const dsWindowed = document.createElement('button'); dsWindowed.textContent = '窗口内观看'; dsSecondary.appendChild(dsWindowed);
+                const dsHint = document.createElement('div'); dsHint.className = 'ds-hint'; dsHint.textContent = '← → 翻页 · F 全屏 · Esc 退出';
+                startOverlay.appendChild(dsTitle); startOverlay.appendChild(dsSub); startOverlay.appendChild(dsPlay); startOverlay.appendChild(dsSecondary); startOverlay.appendChild(dsHint);
+                deck.appendChild(startOverlay);
+                // 开场按钮 = 用户手势（浏览器要求音频由手势触发）：进入后即由数字人开讲第 1 页。
+                // dsPlay 走 enterFullscreen → setFullscreenState(true) → show(cur,false)，narration 由 show 钩子触发（勿重复 show）。
+                dsPlay.addEventListener('click', function(){ startOverlay.classList.add('hidden'); enterFullscreen(); });
+                dsWindowed.addEventListener('click', function(){ startOverlay.classList.add('hidden'); try{ deck.focus(); }catch(e){} if (narrationOn) show(0); });
+
+                // 初始化讲解面板与 AI 上下文
+                updatePresenter(0);
+                syncAiContext(0);
+
+                deck.appendChild(nav);
+                section.appendChild(deck);
+            }
+            else if (key === 'quiz') {
+                const quizNote = document.createElement('div');
+                quizNote.style.cssText = 'font-size:12px;color:#64748b;margin:-4px 0 10px;';
+                quizNote.textContent = '课件放映中的“随堂快问”用于即时检查，这里是完整的课后测验，提交后自动评分。';
+                section.appendChild(quizNote);
+                let qobj = null;
+                try { qobj = (typeof preview === 'string') ? JSON.parse(preview) : preview; } catch(e){ qobj = null; }
+                if (qobj && Array.isArray(qobj.questions || qobj)) {
+                    const questions = (qobj.questions || qobj);
+                    const form = document.createElement('form');
+                    form.className = 'space-y-3';
+                    questions.forEach(function(q, qi){
+                        const wrap = document.createElement('div');
+                        wrap.className = 'p-2 bg-white rounded';
+                        const qtitle = document.createElement('div'); qtitle.className='font-semibold mb-2'; qtitle.textContent = q.text || q.question || ('问题 ' + (qi+1));
+                        wrap.appendChild(qtitle);
+                        if (q.choices || q.options) {
+                            const opts = q.choices || q.options;
+                            opts.forEach(function(opt, oi){
+                                const id = `q${qi}_opt${oi}`;
+                                const label = document.createElement('label'); label.className='flex items-center gap-2';
+                                const inp = document.createElement('input'); inp.type='radio'; inp.name=`q${qi}`; inp.value = (typeof opt === 'object' ? (opt.value||opt) : opt); inp.id = id;
+                                const span = document.createElement('span'); span.className='text-sm'; span.textContent = (typeof opt === 'object' ? (opt.label||opt.text||opt.value) : opt);
+                                label.appendChild(inp); label.appendChild(span); wrap.appendChild(label);
+                            });
+                        } else {
+                            const ta = document.createElement('textarea'); ta.className='w-full border rounded p-2 text-sm'; ta.name=`q${qi}`; ta.rows=3; wrap.appendChild(ta);
+                        }
+                        // hidden answer placeholder
+                        const ans = document.createElement('div'); ans.style.display='none'; ans.className='text-green-700 text-sm mt-2'; ans.textContent = q.answer || q.answer_text || q.correct_answer || '';
+                        wrap.appendChild(ans);
+                        form.appendChild(wrap);
+                    });
+                    const btn = document.createElement('button'); btn.type='button'; btn.className='btn-primary'; btn.textContent='提交并评分';
+                    let quizSubmitted = false;  // 防重复提交：否则第二次提交(输入已禁用)会拿到空答案被判 0 分、横幅堆叠
+                    btn.addEventListener('click', async function(){
+                        if (quizSubmitted) return;
+                        // collect answers
+                        const formData = new FormData(form);
+                        const answersObj = {};
+                        for (const pair of formData.entries()) { answersObj[pair[0]] = pair[1]; }
+                        btn.disabled = true; btn.textContent = '评分中…';
+                        try {
+                            const resp = await fetch(`/curriculum/outline/${outlineId}/quiz/submit/`, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken') },
+                                body: JSON.stringify({ answers: answersObj })
+                            });
+                            const data = await resp.json();
+                            if (!data.success) { alert('评分失败: ' + (data.error || '未知错误')); btn.disabled = false; btn.textContent = '提交并评分'; return; }
+                            quizSubmitted = true; btn.textContent = '已提交';
+                            // display result banner
+                            const resultBanner = document.createElement('div'); resultBanner.className='p-2 bg-green-100 rounded mb-2';
+                            resultBanner.innerHTML = `<strong>得分: ${data.score}% (${data.correct}/${data.total})</strong>`;
+                            section.insertBefore(resultBanner, form);
+                            // reveal answers and mark correctness
+                            const wraps = form.querySelectorAll('div.p-2');
+                            data.details.forEach(function(d, idx){
+                                const w = wraps[idx]; if (!w) return;
+                                const ansDiv = w.querySelector('div.text-green-700') || document.createElement('div');
+                                ansDiv.style.display = 'block';
+                                ansDiv.className = d.correct_flag ? 'text-green-700 text-sm mt-2' : 'text-red-600 text-sm mt-2';
+                                ansDiv.textContent = '参考答案: ' + (d.correct || '') + (d.correct_flag ? ' (你的回答正确)' : (' (你的回答: ' + (d.submitted || '') + ')'));
+                                w.appendChild(ansDiv);
+                                // disable inputs
+                                const inputs = w.querySelectorAll('input, textarea'); inputs.forEach(i=>i.disabled=true);
+                            });
+                        } catch (err) { console.error(err); alert('评分出错'); if (!quizSubmitted) { btn.disabled = false; btn.textContent = '提交并评分'; } }
+                    });
+                    section.appendChild(form); section.appendChild(btn);
+                } else {
+                    const preel = document.createElement('pre'); preel.className = 'bg-white p-3 rounded text-sm overflow-auto'; preel.textContent = preview; section.appendChild(preel);
+                }
+            }
+            else if (key === 'animation') {
+                const animNote = document.createElement('div');
+                animNote.style.cssText = 'font-size:12px;color:#64748b;margin:-4px 0 10px;';
+                animNote.textContent = '这些动态演示已按知识点嵌入上方课件对应页；此处可单独反复观看。';
+                section.appendChild(animNote);
+                const items = Array.isArray(r.items) ? r.items : (Array.isArray(od.animations) ? od.animations : []);
+                if (items.length) {
+                    const list = document.createElement('div');
+                    list.className = 'animation-list';
+                    items.forEach(function(item, idx) {
+                        const card = document.createElement('article');
+                        card.className = 'animation-player';
+                        const title = item.concept_name || ('动画 ' + (idx + 1));
+                        const kind = item.animation_type || 'css';
+                        const code = item.animation_code || item.code || '';
+                        const header = document.createElement('header');
+                        header.innerHTML = `<strong>${title}</strong><span class="text-xs text-slate-500">${kind.toUpperCase()}</span>`;
+                        const iframe = document.createElement('iframe');
+                        iframe.setAttribute('sandbox', 'allow-scripts');
+                        iframe.setAttribute('loading', 'lazy');
+                        iframe.srcdoc = code || '<!doctype html><html><body style="font-family:Arial;padding:24px;">动画内容为空</body></html>';
+                        const note = document.createElement('div');
+                        note.className = 'note';
+                        note.textContent = item.usage_note || '用于辅助讲解关键概念。';
+                        card.appendChild(header);
+                        card.appendChild(iframe);
+                        card.appendChild(note);
+                        list.appendChild(card);
+                    });
+                    section.appendChild(list);
+                } else {
+                    const empty = document.createElement('div');
+                    empty.className = 'text-sm text-slate-500';
+                    empty.textContent = '暂无 H5 动画。';
+                    section.appendChild(empty);
+                }
+            }
+            else if (key === 'mindmap') {
+                // 思维导图：把 LLM 输出的缩进 Markdown 列表解析成树，渲染成可视化导图
+                const mmText = r.content || preview || '';
+                let mm;
+                try { mm = renderMindmapTree(mmText); }
+                catch(e) { mm = document.createElement('div'); mm.className = 'doc-reader'; try { renderRich(mm, mmText); } catch(e2){ mm.textContent = mmText; } }
+                section.appendChild(mm);
+            }
+            else if (key === 'reading') {
+                // 拓展阅读：Markdown 清单
+                const rd = document.createElement('div'); rd.className = 'reading-body doc-reader';
+                const rdText = r.content || preview || '';
+                try { renderRich(rd, rdText); } catch(e) { rd.textContent = rdText; }
+                section.appendChild(rd);
+            }
+            else if (key === 'code') {
+                const codeText = r.code || preview;
+                const preel = document.createElement('pre'); preel.className = 'p-3 rounded text-sm overflow-auto';
+                const code = document.createElement('code'); code.className = 'hljs language-' + (r.language || 'python'); code.textContent = codeText;
+                preel.appendChild(code);
+                const copyBtn = document.createElement('button'); copyBtn.className='btn-secondary ml-2'; copyBtn.textContent='复制代码';
+                copyBtn.addEventListener('click', ()=> navigator.clipboard.writeText(codeText));
+                section.appendChild(preel); section.appendChild(copyBtn);
+                // highlight
+                try { hljs.highlightElement(code); } catch(e){}
+            }
+            else {
+                const preel = document.createElement('pre'); preel.className = 'bg-white p-3 rounded text-sm overflow-auto'; preel.textContent = preview; section.appendChild(preel);
+            }
+
+            // 协作/模拟证据已在循环开头统一收集，聚合到独立"AI 生产过程"分区
+            container.appendChild(section);
+        });
+
+        // 聚合分区：AI 生产过程（多智能体协作 + 学生模拟适配），一处集中展示、天然去重
+        if (processEntries.length) {
+            const zoneTitle = document.createElement('div');
+            zoneTitle.className = 'section-zone-title';
+            zoneTitle.innerHTML = '<i class="fas fa-diagram-project"></i> AI 生产过程（多智能体协作）';
+            container.appendChild(zoneTitle);
+
+            const zone = document.createElement('div'); zone.className = 'ai-process-zone';
+            zone.innerHTML = '<div class="zone-title"><i class="fas fa-people-group"></i> 规划 → 审核/辩论 → 修订 → 学生模拟适配</div>'
+                + '<div class="zone-sub">以下是各资源在生成过程中，不同角色智能体协作与个性化适配的记录。</div>';
+            processEntries.forEach(function(pe){
+                const grp = document.createElement('div'); grp.className = 'ai-process-group';
+                const gt = document.createElement('div'); gt.className = 'grp-title';
+                gt.textContent = '『' + pe.label + '』';
+                grp.appendChild(gt);
+                if (pe.collab && pe.collab.length) {
+                    const cp = buildCollaborationTimeline(pe.collab);
+                    if (cp) grp.appendChild(cp);
+                }
+                if (pe.sim) {
+                    const sp = buildSimulationPanel(pe.sim, pe.personalized);
+                    if (sp) grp.appendChild(sp);
+                }
+                zone.appendChild(grp);
+            });
+            container.appendChild(zone);
+        }
+
+        if (pre) pre.style.display = 'none';
+    }
+
+    function parseSlides(preview){
+        try {
+            if (!preview) return [''];
+            // 已经是数组直接返回
+            if (Array.isArray(preview)) return preview;
+            // 对象可能包含 slides 或 content 字段
+            if (typeof preview === 'object') {
+                if (Array.isArray(preview.slides)) return preview.slides;
+                if (Array.isArray(preview.content)) return preview.content;
+                // 尝试把对象序列化为字符串进行后续解析
+                try { preview = JSON.stringify(preview); } catch(e) { preview = String(preview); }
+            }
+            // 现在应该是字符串：尝试 JSON 解析为数组或包含 slides 的对象
+            if (typeof preview === 'string') {
+                preview = preview.trim();
+                try {
+                    const parsed = JSON.parse(preview);
+                    if (Array.isArray(parsed)) return parsed;
+                    if (parsed && Array.isArray(parsed.slides)) return parsed.slides;
+                    if (parsed && Array.isArray(parsed.content)) return parsed.content;
+                    // 如果解析后仍为字符串，继续使用该字符串
+                    if (typeof parsed === 'string') preview = parsed;
+                } catch(e) {
+                    // not JSON
+                }
+
+                // 若为 HTML 片段，使用 DOMParser 按标题或顶级块元素拆分
+                const htmlLike = /<\/?[a-z][\s\S]*>/i.test(preview);
+                if (htmlLike && typeof DOMParser !== 'undefined') {
+                    try {
+                        const doc = new DOMParser().parseFromString(preview, 'text/html');
+                        const headings = Array.from(doc.querySelectorAll('h1,h2,h3,h4,h5,h6'));
+                        if (headings.length) {
+                            const slides = [];
+                            headings.forEach(h => {
+                                let frag = h.outerHTML;
+                                let el = h.nextElementSibling;
+                                while(el && !(/^H[1-6]$/i.test(el.tagName))) {
+                                    frag += el.outerHTML; el = el.nextElementSibling;
+                                }
+                                slides.push(frag);
+                            });
+                            if (slides.length) return slides;
+                        }
+                        const bodyChildren = Array.from(doc.body.children || []);
+                        if (bodyChildren.length) return bodyChildren.map(el => el.outerHTML);
+                    } catch(e) { console.warn('parseSlides DOM parse failed', e); }
+                }
+
+                // 纯文本回退：按两个及以上换行分段
+                const parts = preview.split(/\n{2,}/g).map(s=>s.trim()).filter(Boolean);
+                if (parts.length>0) return parts;
+                return [preview];
+            }
+        } catch(err){ console.warn('parseSlides error', err); }
+        return [''];
+    }
+
+    function buildSimulationPanel(sim, personalized) {
+        if (!sim) return null;
+        const score = parseInt(sim.overall_fit_score, 10);
+        const scoreVal = isNaN(score) ? 70 : score;
+        const scoreClass = scoreVal >= 80 ? 'text-emerald-600' : (scoreVal >= 60 ? 'text-amber-600' : 'text-rose-600');
+
+        const details = document.createElement('details');
+        details.className = 'mt-3 p-3 bg-indigo-50 rounded border border-indigo-100 text-sm';
+
+        const summary = document.createElement('summary');
+        summary.className = 'cursor-pointer font-medium text-slate-800 flex items-center gap-2 flex-wrap';
+        summary.innerHTML = `<i class="fas fa-user-graduate text-indigo-500"></i> AI模拟学生反馈：适配度 <span class="${scoreClass} font-semibold">${scoreVal}/100</span>`;
+        if (personalized) {
+            const tag = document.createElement('span');
+            tag.className = 'text-xs bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full';
+            tag.textContent = '已根据你的画像个性化调整';
+            summary.appendChild(tag);
+        }
+        details.appendChild(summary);
+
+        const body = document.createElement('div');
+        body.className = 'mt-2 space-y-2 text-slate-700';
+
+        if (sim.persona_summary) {
+            const p = document.createElement('p');
+            p.className = 'italic text-slate-600';
+            p.textContent = sim.persona_summary;
+            body.appendChild(p);
+        }
+
+        const sections = [
+            { key: 'comprehension_issues', label: '理解难点', icon: 'fa-circle-question', color: 'text-amber-600' },
+            { key: 'misconception_triggers', label: '可能的误解点', icon: 'fa-triangle-exclamation', color: 'text-rose-600' },
+            { key: 'engagement_issues', label: '参与度问题', icon: 'fa-face-meh', color: 'text-slate-500' },
+            { key: 'suggestions', label: '改进建议', icon: 'fa-lightbulb', color: 'text-emerald-600' },
+        ];
+
+        sections.forEach(function(sec) {
+            const items = sim[sec.key];
+            if (!Array.isArray(items) || !items.length) return;
+            const block = document.createElement('div');
+            const h = document.createElement('div');
+            h.className = `font-medium ${sec.color} flex items-center gap-1 mb-1`;
+            h.innerHTML = `<i class="fas ${sec.icon}"></i> ${sec.label}`;
+            block.appendChild(h);
+            const ul = document.createElement('ul');
+            ul.className = 'list-disc pl-5 space-y-0.5';
+            items.forEach(function(item) {
+                const li = document.createElement('li');
+                li.textContent = item;
+                ul.appendChild(li);
+            });
+            block.appendChild(ul);
+            body.appendChild(block);
+        });
+
+        details.appendChild(body);
+        return details;
+    }
+
+    function buildCollaborationTimeline(entries) {
+        if (!Array.isArray(entries) || !entries.length) return null;
+
+        const details = document.createElement('details');
+        details.className = 'mt-3 p-3 bg-violet-50 rounded border border-violet-100 text-sm';
+
+        const summary = document.createElement('summary');
+        summary.className = 'cursor-pointer font-medium text-slate-800 flex items-center gap-2';
+        summary.innerHTML = `<i class="fas fa-people-arrows text-violet-500"></i> Agent协作过程（共${entries.length}步）`;
+        details.appendChild(summary);
+
+        const ol = document.createElement('ol');
+        ol.className = 'mt-2 space-y-3 border-l-2 border-violet-200 pl-4';
+
+        entries.forEach(function(entry) {
+            const li = document.createElement('li');
+
+            const head = document.createElement('div');
+            head.className = 'font-medium text-slate-800';
+
+            let icon = 'fa-robot';
+            let iconColor = 'text-violet-500';
+            let text = '';
+
+            if (entry.agent === 'CriticAgent' && entry.stage === 'review') {
+                icon = 'fa-clipboard-check';
+                const score = parseInt(entry.score, 10);
+                const scoreVal = isNaN(score) ? 0 : score;
+                const scoreClass = scoreVal >= 80 ? 'text-emerald-600' : (scoreVal >= 60 ? 'text-amber-600' : 'text-rose-600');
+                text = `第${entry.iteration}轮内容审核：得分 <span class="${scoreClass} font-semibold">${scoreVal}/100</span>，${entry.needs_revision ? '建议修订' : '质量达标'}`;
+            } else if (entry.agent === 'CriticAgent' && entry.stage === 'debate') {
+                icon = 'fa-scale-balanced';
+                iconColor = 'text-orange-500';
+                const score = parseInt(entry.score, 10);
+                const scoreVal = isNaN(score) ? 0 : score;
+                const scoreClass = scoreVal >= 80 ? 'text-emerald-600' : (scoreVal >= 60 ? 'text-amber-600' : 'text-rose-600');
+                text = `第${entry.iteration}轮内容审核（多智能体辩论）：最终得分 <span class="${scoreClass} font-semibold">${scoreVal}/100</span>，${entry.needs_revision ? '建议修订' : '质量达标'}`;
+            } else if (entry.agent === 'ReflectionController' && entry.stage === 'revision') {
+                icon = 'fa-pen-to-square';
+                text = `根据第${entry.iteration}轮反馈修订内容`;
+            } else if (entry.agent === 'StudentSimulatorAgent' && entry.stage === 'simulation') {
+                icon = 'fa-user-graduate';
+                const score = parseInt(entry.overall_fit_score, 10);
+                const scoreVal = isNaN(score) ? 70 : score;
+                const scoreClass = scoreVal >= 80 ? 'text-emerald-600' : (scoreVal >= 60 ? 'text-amber-600' : 'text-rose-600');
+                text = `模拟学生阅读反馈：适配度 <span class="${scoreClass} font-semibold">${scoreVal}/100</span>` + (entry.persona_summary ? ` — ${entry.persona_summary}` : '');
+            } else if (entry.agent === 'StudentSimulatorAgent' && entry.stage === 'personalize') {
+                icon = 'fa-wand-magic-sparkles';
+                text = '已根据模拟学生反馈个性化改写内容';
+            } else {
+                text = `${entry.agent || 'Agent'} ${entry.stage || ''}`;
+            }
+
+            head.innerHTML = `<i class="fas ${icon} ${iconColor}"></i> <span>${text}</span>`;
+            li.appendChild(head);
+
+            // 反馈项可能是字符串，也可能是对象(弱模型没按"字符串列表"返回)——统一转成可读文本，避免渲染出 [object Object]
+            function _fbItemText(f){
+                if (f == null) return '';
+                if (typeof f === 'string') return f;
+                if (typeof f === 'object') {
+                    return f.text || f.issue || f.point || f.detail || f.content || f.message
+                        || f.description || f.suggestion || f.problem || f.comment
+                        || Object.values(f).filter(function(v){ return typeof v === 'string' && v.trim(); }).join('：')
+                        || JSON.stringify(f);
+                }
+                return String(f);
+            }
+
+            if (entry.agent === 'CriticAgent' && entry.stage === 'debate' && Array.isArray(entry.rounds) && entry.rounds.length) {
+                const roundsBox = document.createElement('div');
+                roundsBox.className = 'mt-1 p-2 bg-orange-50 border border-orange-100 rounded space-y-1';
+                entry.rounds.forEach(function(round, idx) {
+                    const roundEl = document.createElement('div');
+                    const rScore = parseInt(round.score, 10);
+                    const rScoreVal = isNaN(rScore) ? 0 : rScore;
+                    const rScoreClass = rScoreVal >= 80 ? 'text-emerald-600' : (rScoreVal >= 60 ? 'text-amber-600' : 'text-rose-600');
+                    const criticLabel = round.critic === 'DebateCriticAgent' ? '审核员B（事实核查视角）' : '审核员A（教学设计视角）';
+                    const roundLabel = idx >= 2 ? '（讨论后）' : '';
+                    roundEl.innerHTML = `<span class="font-medium text-slate-700">${criticLabel}${roundLabel}：</span> <span class="${rScoreClass} font-semibold">${rScoreVal}/100</span>`;
+                    roundsBox.appendChild(roundEl);
+                    if (Array.isArray(round.feedback) && round.feedback.length) {
+                        const ul = document.createElement('ul');
+                        ul.className = 'list-disc pl-5 text-slate-600 space-y-0.5';
+                        round.feedback.forEach(function(f) {
+                            const fli = document.createElement('li');
+                            fli.textContent = _fbItemText(f);
+                            ul.appendChild(fli);
+                        });
+                        roundsBox.appendChild(ul);
+                    }
+                });
+                if (entry.rounds.length > 2) {
+                    const consensus = document.createElement('div');
+                    consensus.className = 'mt-1 font-medium text-orange-700';
+                    const score = parseInt(entry.score, 10);
+                    const scoreVal = isNaN(score) ? 0 : score;
+                    consensus.textContent = `经过讨论后达成共识：最终评分 ${scoreVal}/100`;
+                    roundsBox.appendChild(consensus);
+                }
+                li.appendChild(roundsBox);
+            }
+
+            if (Array.isArray(entry.feedback) && entry.feedback.length) {
+                const ul = document.createElement('ul');
+                ul.className = 'list-disc pl-5 mt-1 text-slate-600 space-y-0.5';
+                entry.feedback.forEach(function(f) {
+                    const fli = document.createElement('li');
+                    fli.textContent = _fbItemText(f);
+                    ul.appendChild(fli);
+                });
+                li.appendChild(ul);
+            }
+
+            if (Array.isArray(entry.suggestions) && entry.suggestions.length) {
+                const ul = document.createElement('ul');
+                ul.className = 'list-disc pl-5 mt-1 text-slate-600 space-y-0.5';
+                entry.suggestions.forEach(function(s) {
+                    const sli = document.createElement('li');
+                    sli.textContent = _fbItemText(s);
+                    ul.appendChild(sli);
+                });
+                li.appendChild(ul);
+            }
+
+            ol.appendChild(li);
+        });
+
+        details.appendChild(ol);
+        return details;
+    }
+
+    // 初始化
+    try {
+        if (["completed", "pending"].includes("{{ outline.status }}")) {
+            try {
+                const initial = JSON.parse('{{ outline.outline_data|escapejs }}' || '{}');
+                renderOutline(initial);
+            } catch(e) { const pre = document.getElementById('outlineContentPre'); if (pre) pre.style.display = 'block'; }
+        }
+
+        if ("{{ outline.status }}" === 'generating') {
+            // 说明：慢模型下生成要很久，看守用的 SSE 连接会周期性超时/断开，但后台生成仍在继续。
+            // 所以断开时不弹"请刷新"，而是自动重连继续盯，直到收到 completed/failed。
+            let outlineDone = false;
+            let es = null;
+            let reconnects = 0;
+            const MAX_RECONNECTS = 240;  // 每次约几十秒到几分钟，够盯一门慢课跑完
+
+            function connectOutlineStream() {
+                es = new EventSource('/curriculum/generate/outline/stream/?outline_id=' + encodeURIComponent(outlineId));
+                es.addEventListener('progress', function(e) {
+                    try {
+                        const p = JSON.parse(e.data).progress || 0;
+                        if (progressText) progressText.textContent = p.toString();
+                        if (statusEl) statusEl.innerHTML = `<span class="text-orange-600">生成中 (<span id="outlineProgressText">${p}</span>%)</span>`;
+                    } catch (err) {}
+                });
+                es.addEventListener('output', function(e) {
+                    try {
+                        const payload = JSON.parse(e.data);
+                        const od = payload.outline_data;
+                        let parsed = od;
+                        if (typeof od === 'string') {
+                            try { parsed = JSON.parse(od); } catch (err) { parsed = od; }
+                        }
+                        renderOutline(parsed);
+                    } catch (err) {
+                        const pre = document.getElementById('outlineContentPre'); if (pre) { pre.textContent = e.data; pre.style.display = 'block'; }
+                    }
+                });
+                es.addEventListener('completed', function(e) {
+                    try {
+                        const payload = JSON.parse(e.data);
+                        let od = payload.outline_data;
+                        if (typeof od === 'string') {
+                            try { od = JSON.parse(od); } catch (err) { od = od; }
+                        }
+                        renderOutline(od);
+                        if (statusEl) statusEl.innerHTML = '<span class="text-green-600">已完成</span>';
+                    } catch (err) {}
+                    outlineDone = true;
+                    setTimeout(() => es.close(), 1000);
+                });
+                es.addEventListener('failed', function(e) {
+                    outlineDone = true;
+                    let msg = '生成失败，请稍后重试';
+                    try { const p = JSON.parse(e.data); msg = '生成失败：' + (p.error || p.message || '请稍后重试'); } catch (err) {}
+                    if (statusEl) statusEl.innerHTML = '<span class="text-red-600">' + msg + '</span>';
+                    es.close();
+                });
+                // 服务器侧看守超时（生成没错、只是看守连接到点了）→ 直接重连继续盯
+                es.addEventListener('timeout', function() { reconnectOutlineStream(); });
+                es.onerror = function() {
+                    if (outlineDone) { try { es.close(); } catch (e) {} return; }
+                    // 连接断了但生成还没结束：不吓唬用户，自动重连
+                    reconnectOutlineStream();
+                };
+            }
+
+            function reconnectOutlineStream() {
+                if (outlineDone) return;
+                try { es.close(); } catch (e) {}
+                if (reconnects >= MAX_RECONNECTS) {
+                    if (statusEl) statusEl.innerHTML = '<span class="text-orange-600">生成仍在后台进行，已停止自动刷新；稍后手动刷新本页查看结果</span>';
+                    return;
+                }
+                reconnects++;
+                if (statusEl && statusEl.textContent.indexOf('生成中') < 0) {
+                    statusEl.innerHTML = '<span class="text-orange-600">生成进行中，正在保持连接…</span>';
+                }
+                setTimeout(connectOutlineStream, 2000);
+            }
+
+            connectOutlineStream();
+        }
+    } catch (e) { console.error(e); }
+});
+
+// Export button handling: schedule export, poll and download when ready
+document.addEventListener('DOMContentLoaded', function(){
+    try{
+        var exportBtn = document.getElementById('exportBtn');
+        if(!exportBtn) return;
+        var url = exportBtn.dataset.url;
+        var csrftoken = (function(){
+            var name='csrftoken'; var cookieValue=null; if(document.cookie && document.cookie !== ''){ var cookies=document.cookie.split(';'); for(var i=0;i<cookies.length;i++){ var c=cookies[i].trim(); if(c.substring(0,name.length+1)=== (name+'=')){ cookieValue=decodeURIComponent(c.substring(name.length+1)); break; } } } return cookieValue; })();
+
+        function showToast(msg, timeout=5000){
+            try{
+                var t = document.createElement('div'); t.className='fixed right-6 bottom-6 bg-black text-white px-4 py-2 rounded shadow'; t.textContent = msg; document.body.appendChild(t); setTimeout(function(){ t.remove(); }, timeout);
+            }catch(e){ alert(msg); }
+        }
+
+        async function attemptDownloadResponse(resp){
+            // If JSON, return parsed JSON; otherwise treat as file blob and download
+            var ctype = resp.headers.get('Content-Type') || '';
+            if(ctype.indexOf('application/json') !== -1){
+                return await resp.json();
+            }
+            // treat as file stream
+            var blob = await resp.blob();
+            var cd = resp.headers.get('Content-Disposition') || '';
+            var filename = 'export.pptx';
+            var m = /filename\*=UTF-8''(.+)$/.exec(cd);
+            if(m && m[1]){ try{ filename = decodeURIComponent(m[1]); }catch(e){} }
+            else {
+                m = /filename="?([^";]+)"?/.exec(cd);
+                if(m && m[1]) filename = m[1];
+            }
+            var urlBlob = window.URL.createObjectURL(blob);
+            var a = document.createElement('a'); a.style.display='none'; a.href = urlBlob; a.download = filename; document.body.appendChild(a); a.click(); setTimeout(function(){ window.URL.revokeObjectURL(urlBlob); a.remove(); }, 30000);
+            return { downloaded: true, filename: filename };
+        }
+
+        async function pollForDownload(maxAttempts){
+            var attempts = 0; var interval = 8000;
+            while(attempts < maxAttempts){
+                try{
+                    var resp = await fetch(url, { method: 'GET', credentials: 'same-origin' });
+                    var result = await attemptDownloadResponse(resp);
+                    if(result && result.downloaded) return result;
+                    // if JSON and indicates scheduled, continue polling
+                }catch(e){ console.warn('poll error', e); }
+                attempts++; await new Promise(r=>setTimeout(r, interval));
+            }
+            return null;
+        }
+
+        exportBtn.addEventListener('click', async function(e){
+            e.preventDefault(); exportBtn.disabled = true; exportBtn.textContent = '正在排队导出...';
+            try{
+                var resp = await fetch(url, { method: 'GET', credentials: 'same-origin' });
+                var ctype = resp.headers.get('Content-Type') || '';
+                if(ctype.indexOf('application/json') !== -1){
+                    var j = await resp.json();
+                    if(j && j.scheduled){
+                        showToast('导出任务已排队，正在订阅导出进度...');
+                        // 开启 SSE 订阅导出进度
+                        try{
+                            var sseUrl = '/curriculum/outline/' + encodeURIComponent(outlineId) + '/export/stream/';
+                            var es = new EventSource(sseUrl);
+                            var exportDone = false;
+                            es.addEventListener('export_progress', function(ev){
+                                try{ var d = JSON.parse(ev.data); showToast('导出: ' + d.progress + '%', 1500); } catch(e){}
+                            });
+                            es.addEventListener('export_status', function(ev){
+                                try{ var d = JSON.parse(ev.data); if(d.status==='running') exportBtn.textContent = '导出中...'; }
+                                catch(e){}
+                            });
+                            es.addEventListener('export_completed', async function(ev){
+                                try{
+                                    var d = JSON.parse(ev.data);
+                                    showToast('导出完成，开始下载...');
+                                    // 触发一次 GET 请求，后端会返回文件流（export_outline_pptx 会检查 exported_pptx 并返回文件）
+                                    try{
+                                        const fileResp = await fetch(url, { method: 'GET', credentials: 'same-origin' });
+                                        await attemptDownloadResponse(fileResp);
+                                    } catch(err){ console.warn('download fetch failed', err); showToast('无法自动下载，请稍后手动下载。', 6000); }
+                                } catch(e){ console.warn(e); }
+                                exportDone = true;
+                                try{ es.close(); } catch(e){}
+                                exportBtn.disabled = false; exportBtn.textContent = '导出 PPTX';
+                            });
+                            // 连接中断/服务端出错：复位按钮并轮询回退，避免永久卡在“导出中…”
+                            es.addEventListener('error', async function(ev){
+                                if (exportDone) return;
+                                exportDone = true;
+                                try{ es.close(); } catch(e){}
+                                showToast('导出进度连接中断，尝试轮询获取结果…', 4000);
+                                try {
+                                    var r = await pollForDownload(40);
+                                    if (r && r.downloaded) { showToast('导出完成：' + r.filename, 5000); }
+                                    else { showToast('导出未在规定时间内完成，请稍后重试下载。', 8000); }
+                                } catch(e){ showToast('导出失败，请稍后重试。', 6000); }
+                                exportBtn.disabled = false; exportBtn.textContent = '导出 PPTX';
+                            });
+                        } catch(e){
+                            showToast('订阅导出进度失败，启用轮询回退。');
+                            var r = await pollForDownload(40);
+                            if(r && r.downloaded){ showToast('导出完成：' + r.filename, 5000); }
+                            else showToast('导出未在规定时间内完成，请稍后在课程页重试下载。', 8000);
+                        }
+                    } else if(j && j.success && j.note){
+                        showToast(j.note || '导出结果已返回');
+                    } else {
+                        showToast('导出请求已返回: ' + JSON.stringify(j));
+                    }
+                } else {
+                    // 非 JSON，视为文件流，触发下载
+                    var r = await attemptDownloadResponse(resp);
+                    if(r && r.downloaded) showToast('导出并下载成功：' + r.filename, 4000);
+                }
+            }catch(err){ console.error(err); showToast('导出失败：' + (err.message || err)); exportBtn.disabled = false; exportBtn.textContent = '导出 PPTX'; }
+        });
+    }catch(e){ console.warn('export button init failed', e); }
+});
+</script>
+{% endblock %}
+</div>
+{% endblock %}
+
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+    try{
+        document.querySelectorAll && document.querySelectorAll('.delete-export-btn').forEach(function(btn){
+            btn.addEventListener('click', async function(e){
+                var id = this.dataset.id; if(!id) return;
+                if(!confirm('确认删除该导出文件及记录？此操作不可撤销。')) return;
+                try{
+                    const csrftoken = (function(){ var name='csrftoken'; var cookieValue=null; if(document.cookie && document.cookie !== ''){ var cookies=document.cookie.split(';'); for(var i=0;i<cookies.length;i++){ var c=cookies[i].trim(); if(c.substring(0,name.length+1)=== (name+'=')){ cookieValue=decodeURIComponent(c.substring(name.length+1)); break; } } } return cookieValue; })();
+                    const resp = await fetch('/curriculum/outline/export/' + encodeURIComponent(id) + '/delete/', { method: 'POST', credentials: 'same-origin', headers: {'X-CSRFToken': csrftoken} });
+                    const j = await resp.json();
+                    if(j && j.success){
+                        const row = document.getElementById('export-row-' + id);
+                        if(row) row.remove();
+                        alert('删除成功');
+                    } else {
+                        alert('删除失败: ' + (j && j.error ? j.error : '未知错误'));
+                    }
+                }catch(err){ console.error(err); alert('删除请求出错'); }
+            });
+        });
+    }catch(e){ console.warn('delete-export init failed', e); }
+});
+</script>

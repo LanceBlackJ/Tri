@@ -1,0 +1,2620 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}课程学习页{% endblock %}
+{% block page_title %}课程学习{% endblock %}
+{% block page_description %}边看资料边问 AI{% endblock %}
+
+{% block extra_css %}
+<style>
+    @import url('https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+
+    main.max-w-7xl {
+        max-width: none !important;
+        padding-left: 0 !important;
+        padding-right: 0 !important;
+    }
+
+    :root {
+        --primary-color: #1d4e89;
+        --secondary-color: #4a7abc;
+        --accent-color: #5fa8d3;
+        --background-color: #f8fafc;
+        --surface-color: #ffffff;
+        --text-primary: #1e293b;
+        --text-secondary: #64748b;
+        --border-color: #e2e8f0;
+        --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    }
+
+    body {
+        font-family: 'Plus Jakarta Sans', 'Inter', sans-serif;
+        background-color: var(--background-color);
+    }
+
+    .course-study-container {
+        display: flex;
+        min-height: calc(100vh - 64px);
+        max-width: 1600px;
+        margin: 0 auto;
+        background: var(--surface-color);
+        box-shadow: var(--shadow);
+        overflow: hidden;
+    }
+
+    .materials-sidebar {
+        width: 360px;
+        background: var(--surface-color);
+        border-right: 1px solid var(--border-color);
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+    }
+
+    .materials-sidebar-header {
+        padding: 1.5rem;
+        border-bottom: 1px solid var(--border-color);
+        background: linear-gradient(135deg, var(--primary-color) 0%, #2c5a96 100%);
+        color: white;
+    }
+
+    .materials-sidebar-header h1 {
+        font-size: 1.1rem;
+        font-weight: 700;
+        margin: 0 0 0.5rem 0;
+        line-height: 1.4;
+    }
+
+    .materials-sidebar-header p {
+        font-size: 0.85rem;
+        opacity: 0.9;
+        margin: 0;
+        line-height: 1.5;
+    }
+
+    .materials-sidebar-stats {
+        display: flex;
+        gap: 1.5rem;
+        margin-top: 1rem;
+        font-size: 0.825rem;
+        opacity: 0.85;
+    }
+
+    .materials-sidebar-stat-item {
+        display: flex;
+        align-items: center;
+        gap: 0.35rem;
+    }
+
+    .materials-sidebar-stat-item span:first-child {
+        font-weight: 700;
+        opacity: 1;
+    }
+
+    .materials-list-wrapper {
+        flex: 1;
+        overflow-y: auto;
+        padding: 0.75rem;
+    }
+
+    .materials-list {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+
+    .material-item {
+        display: flex;
+        align-items: flex-start;
+        gap: 1rem;
+        padding: 1rem;
+        border-radius: 10px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        background: transparent;
+        border: 2px solid transparent;
+    }
+
+    .material-item:hover {
+        background: rgba(29, 78, 137, 0.04);
+    }
+
+    .material-item.active {
+        background: rgba(29, 78, 137, 0.08);
+        border-color: var(--primary-color);
+    }
+
+    .material-icon-wrapper {
+        width: 40px;
+        height: 40px;
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.25rem;
+        flex-shrink: 0;
+    }
+
+    .material-icon-pdf { background: #fef2f2; }
+    .material-icon-ppt { background: #f0f6fc; }
+    .material-icon-doc { background: #eff6ff; }
+    .material-icon-image { background: #f0f6fc; }
+    .material-icon-video { background: #fdf4ff; }
+    .material-icon-other { background: #f1f5f9; }
+
+    .material-info {
+        flex: 1;
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .material-title {
+        font-size: 0.95rem;
+        font-weight: 600;
+        color: var(--text-primary);
+        margin: 0 0 0.25rem 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .material-item.active .material-title {
+        color: var(--primary-color);
+    }
+
+    .material-meta {
+        font-size: 0.775rem;
+        color: var(--text-secondary);
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+    }
+
+    .material-progress-bar {
+        width: 100%;
+        height: 4px;
+        background: #e2e8f0;
+        border-radius: 2px;
+        margin-top: 0.5rem;
+        overflow: hidden;
+    }
+
+    .material-progress-fill {
+        height: 100%;
+        background: linear-gradient(90deg, var(--primary-color), var(--accent-color));
+        border-radius: 2px;
+        transition: width 0.5s ease;
+    }
+
+    .material-progress-text {
+        font-size: 0.75rem;
+        color: var(--primary-color);
+        font-weight: 600;
+        margin-top: 0.25rem;
+    }
+
+    .main-content-area {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        background: var(--background-color);
+    }
+
+    .content-header {
+        padding: 1.25rem 1.5rem;
+        background: var(--surface-color);
+        border-bottom: 1px solid var(--border-color);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 1rem;
+    }
+
+    .content-header-left {
+        display: flex;
+        flex-direction: column;
+    }
+
+    .content-title {
+        font-size: 1.25rem;
+        font-weight: 700;
+        color: var(--text-primary);
+        margin: 0;
+    }
+
+    .content-subtitle {
+        font-size: 0.85rem;
+        color: var(--text-secondary);
+        margin: 0.25rem 0 0 0;
+    }
+
+    .content-actions {
+        display: flex;
+        gap: 0.75rem;
+        flex-wrap: wrap;
+    }
+
+    .btn {
+        padding: 0.5rem 1rem;
+        border-radius: 8px;
+        border: 1.5px solid var(--border-color);
+        background: var(--surface-color);
+        color: var(--text-primary);
+        cursor: pointer;
+        font-weight: 600;
+        font-size: 0.85rem;
+        transition: all 0.2s ease;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+    }
+
+    .btn:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.08);
+    }
+
+    .btn-primary {
+        background: var(--primary-color);
+        color: white;
+        border-color: var(--primary-color);
+    }
+
+    .btn-primary:hover {
+        background: #1a4276;
+        border-color: #1a4276;
+    }
+
+    .btn-outline {
+        background: transparent;
+    }
+
+    .btn-outline:hover {
+        background: var(--background-color);
+        border-color: var(--accent-color);
+    }
+
+    .viewer-container {
+        flex: 1;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .viewer-wrapper {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        background: white;
+        margin: 1rem;
+        border-radius: 12px;
+        border: 1px solid var(--border-color);
+        box-shadow: var(--shadow);
+    }
+
+    .viewer-toolbar {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 0.75rem 1rem;
+        background: var(--background-color);
+        border-bottom: 1px solid var(--border-color);
+        flex-wrap: wrap;
+        gap: 0.5rem;
+    }
+
+    .viewer-toolbar-left {
+        display: flex;
+        gap: 0.5rem;
+    }
+
+    .viewer-toolbar-right {
+        display: flex;
+        gap: 0.5rem;
+        align-items: center;
+    }
+
+    .viewer-frame {
+        flex: 1;
+        width: 100%;
+        border: none;
+        background: white;
+        min-height: 400px;
+    }
+    /* 全屏查看：wrapper 本身（含工具栏）进全屏，而不是只全屏 iframe，
+       这样翻页/跳转按钮在全屏里依然可用 */
+    .viewer-wrapper:fullscreen,
+    .viewer-wrapper:-webkit-full-screen {
+        margin: 0;
+        border-radius: 0;
+        width: 100vw;
+        height: 100vh;
+    }
+    .viewer-wrapper:fullscreen .viewer-frame,
+    .viewer-wrapper:-webkit-full-screen .viewer-frame {
+        min-height: 0;
+    }
+
+    .viewer-placeholder {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        background: white;
+        text-align: center;
+        padding: 3rem;
+        min-height: 400px;
+    }
+
+    .viewer-placeholder-icon {
+        font-size: 5rem;
+        margin-bottom: 1.5rem;
+        opacity: 0.4;
+    }
+
+    .viewer-placeholder-title {
+        font-size: 1.4rem;
+        font-weight: 700;
+        color: var(--text-primary);
+        margin-bottom: 0.75rem;
+    }
+
+    .viewer-placeholder-desc {
+        font-size: 1rem;
+        color: var(--text-secondary);
+        margin-bottom: 2rem;
+        line-height: 1.6;
+        max-width: 400px;
+    }
+
+    .text-content-viewer {
+        flex: 1;
+        padding: 2rem;
+        background: white;
+        overflow-y: auto;
+        min-height: 400px;
+    }
+
+    .text-content-viewer h2 {
+        font-size: 1.4rem;
+        font-weight: 700;
+        color: var(--text-primary);
+        margin-bottom: 1.5rem;
+        padding-bottom: 0.75rem;
+        border-bottom: 2px solid var(--primary-color);
+    }
+
+    .text-content-viewer p {
+        font-size: 1rem;
+        color: var(--text-primary);
+        line-height: 1.8;
+        margin-bottom: 1rem;
+        text-align: justify;
+    }
+
+    .text-content-viewer ul, .text-content-viewer ol {
+        margin-bottom: 1rem;
+        padding-left: 1.5rem;
+    }
+
+    .text-content-viewer li {
+        font-size: 1rem;
+        color: var(--text-primary);
+        line-height: 1.8;
+        margin-bottom: 0.5rem;
+    }
+
+    .text-content-viewer code {
+        background: var(--background-color);
+        padding: 0.2rem 0.5rem;
+        border-radius: 4px;
+        font-family: 'Consolas', monospace;
+        font-size: 0.9rem;
+        color: var(--primary-color);
+    }
+
+    .text-content-viewer pre {
+        background: var(--background-color);
+        padding: 1rem;
+        border-radius: 8px;
+        overflow-x: auto;
+        margin-bottom: 1rem;
+    }
+
+    .text-content-viewer pre code {
+        background: none;
+        padding: 0;
+        color: var(--text-primary);
+    }
+
+    .viewer-controls {
+        padding: 0.75rem 1rem;
+        background: var(--background-color);
+        border-top: 1px solid var(--border-color);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+    }
+
+    .page-input {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-size: 0.875rem;
+    }
+
+    .page-input input {
+        width: 50px;
+        padding: 0.35rem;
+        border: 1px solid var(--border-color);
+        border-radius: 4px;
+        text-align: center;
+        font-size: 0.85rem;
+    }
+
+    .page-info {
+        font-size: 0.85rem;
+        color: var(--text-secondary);
+    }
+
+    .study-tools-bar {
+        padding: 1rem 1.5rem;
+        background: var(--surface-color);
+        border-top: 1px solid var(--border-color);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 1rem;
+    }
+
+    .mode-selector {
+        display: flex;
+        gap: 0.5rem;
+        background: var(--background-color);
+        padding: 0.25rem;
+        border-radius: 10px;
+    }
+
+    .mode-btn {
+        padding: 0.5rem 1rem;
+        border: none;
+        border-radius: 8px;
+        background: transparent;
+        font-weight: 600;
+        font-size: 0.85rem;
+        color: var(--text-secondary);
+        cursor: pointer;
+        transition: all 0.2s ease;
+        display: flex;
+        align-items: center;
+        gap: 0.4rem;
+    }
+
+    .mode-btn:hover {
+        background: rgba(0, 0, 0, 0.03);
+        color: var(--text-primary);
+    }
+
+    .mode-btn.active {
+        background: var(--surface-color);
+        color: var(--primary-color);
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    }
+
+    .quiz-section {
+        padding: 1rem 1.5rem;
+        background: var(--surface-color);
+        border-top: 1px solid var(--border-color);
+    }
+
+    .quiz-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1rem;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+    }
+
+    .quiz-title {
+        font-size: 0.95rem;
+        font-weight: 700;
+        color: var(--text-primary);
+    }
+
+    .quiz-controls {
+        display: flex;
+        gap: 0.75rem;
+        align-items: center;
+        flex-wrap: wrap;
+    }
+
+    .quiz-type-select {
+        width: 120px;
+        padding: 0.4rem 0.75rem;
+        border: 1.5px solid var(--border-color);
+        border-radius: 6px;
+        font-size: 0.85rem;
+        background: var(--surface-color);
+        color: var(--text-primary);
+        cursor: pointer;
+    }
+
+    .quiz-type-select:focus {
+        outline: none;
+        border-color: var(--primary-color);
+    }
+
+    .quiz-count-input {
+        width: 70px;
+        padding: 0.4rem 0.75rem;
+        border: 1.5px solid var(--border-color);
+        border-radius: 6px;
+        font-size: 0.85rem;
+        background: var(--surface-color);
+        color: var(--text-primary);
+        text-align: center;
+    }
+
+    .quiz-count-input:focus {
+        outline: none;
+        border-color: var(--primary-color);
+    }
+
+    .quiz-status {
+        font-size: 0.825rem;
+        color: var(--text-secondary);
+    }
+
+    /* 题目对话框样式 */
+    .quiz-modal {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        z-index: 1000;
+    }
+    
+    .hidden {
+        display: none !important;
+    }
+    
+    .quiz-modal.hidden {
+        display: none;
+    }
+    
+    .quiz-modal-overlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.6);
+        backdrop-filter: blur(4px);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 20px;
+        box-sizing: border-box;
+    }
+    
+    .quiz-modal-container {
+        background: #ffffff;
+        border-radius: 16px;
+        width: 100%;
+        max-width: 750px;
+        max-height: 85vh;
+        display: flex;
+        flex-direction: column;
+        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+        overflow: hidden;
+        position: relative;
+    }
+    
+    .quiz-modal-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 16px 24px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        flex-shrink: 0;
+    }
+    
+    .quiz-modal-header h3 {
+        margin: 0;
+        font-size: 1.25rem;
+        font-weight: 600;
+        color: white;
+    }
+    
+    .quiz-modal-close {
+        background: rgba(255, 255, 255, 0.2);
+        border: none;
+        font-size: 1.5rem;
+        cursor: pointer;
+        color: white;
+        padding: 0;
+        width: 36px;
+        height: 36px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 50%;
+        transition: all 0.2s;
+    }
+    
+    .quiz-modal-close:hover {
+        background: rgba(255, 255, 255, 0.3);
+        transform: scale(1.1);
+    }
+    
+    .quiz-modal-scroll-area {
+        flex: 1;
+        overflow-y: auto;
+        padding: 24px;
+        background: #f8fafc;
+    }
+    
+    .quiz-modal-body {
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+        visibility: visible !important;
+        opacity: 1 !important;
+        min-height: 100px;
+    }
+    
+    .quiz-modal-result {
+        margin-top: 20px;
+    }
+    
+    .quiz-modal-footer {
+        padding: 16px 24px;
+        background: white;
+        border-top: 1px solid #e2e8f0;
+        display: flex;
+        justify-content: flex-end;
+        gap: 12px;
+        flex-shrink: 0;
+    }
+    
+    .quiz-modal-footer .btn-submit {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border: none;
+        padding: 10px 24px;
+        border-radius: 8px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+    
+    .quiz-modal-footer .btn-submit:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+    }
+    
+    .quiz-modal-footer .btn-close-modal {
+        background: #e2e8f0;
+        color: #475569;
+        border: none;
+        padding: 10px 24px;
+        border-radius: 8px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+    
+    .quiz-modal-footer .btn-close-modal:hover {
+        background: #cbd5e1;
+    }
+    
+    /* 题目卡片样式 */
+    .quiz-question {
+        background: white;
+        border-radius: 12px;
+        padding: 20px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        border: 1px solid #e2e8f0;
+        transition: all 0.2s;
+    }
+    
+    .quiz-question:hover {
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+    
+    .quiz-question-header {
+        display: flex;
+        align-items: flex-start;
+        gap: 12px;
+        margin-bottom: 16px;
+    }
+    
+    .quiz-question-number {
+        width: 28px;
+        height: 28px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        font-size: 0.875rem;
+        font-weight: 700;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+        margin-top: 2px;
+    }
+    
+    .quiz-question-type {
+        font-size: 0.75rem;
+        padding: 2px 8px;
+        border-radius: 4px;
+        background: #f1f5f9;
+        color: #64748b;
+        margin-left: 8px;
+        flex-shrink: 0;
+    }
+    
+    .quiz-question-text {
+        flex: 1;
+        font-size: 1rem;
+        font-weight: 600;
+        color: #1e293b;
+        line-height: 1.6;
+    }
+    
+    .quiz-options {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        margin-left: 40px;
+    }
+    
+    .quiz-option {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 12px 16px;
+        background: #f8fafc;
+        border: 2px solid #e2e8f0;
+        border-radius: 10px;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+    
+    .quiz-option:hover {
+        border-color: #667eea;
+        background: #f0f4ff;
+    }
+    
+    .quiz-option.selected {
+        border-color: #667eea;
+        background: #e0e7ff;
+    }
+    
+    .quiz-option-letter {
+        width: 28px;
+        height: 28px;
+        border-radius: 50%;
+        background: #e2e8f0;
+        color: #64748b;
+        font-size: 0.875rem;
+        font-weight: 600;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+    }
+    
+    .quiz-option.selected .quiz-option-letter {
+        background: #667eea;
+        color: white;
+    }
+    
+    .quiz-option input[type="radio"] {
+        display: none;
+    }
+    
+    .quiz-option-label {
+        flex: 1;
+        font-size: 0.9375rem;
+        color: #334155;
+    }
+    
+    .quiz-short-answer textarea {
+        width: 100%;
+        padding: 12px;
+        border: 2px solid #e2e8f0;
+        border-radius: 10px;
+        font-size: 0.9375rem;
+        resize: vertical;
+        min-height: 80px;
+        font-family: inherit;
+    }
+    
+    .quiz-short-answer textarea:focus {
+        outline: none;
+        border-color: #667eea;
+    }
+    
+    .quiz-question-meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-top: 16px;
+        margin-left: 40px;
+    }
+    
+    .quiz-question-tag {
+        padding: 4px 12px;
+        background: #e0e7ff;
+        color: #4c51bf;
+        border-radius: 20px;
+        font-size: 0.8125rem;
+        font-weight: 500;
+    }
+    
+    /* 结果区域样式 */
+    .quiz-result-summary {
+        background: linear-gradient(135deg, #3b82f6 0%, #0e4470 100%);
+        color: white;
+        padding: 20px;
+        border-radius: 12px;
+        margin-bottom: 20px;
+    }
+    
+    .quiz-result-summary .result-title {
+        font-size: 1.25rem;
+        font-weight: 700;
+        margin-bottom: 8px;
+    }
+    
+    .quiz-result-summary .result-score {
+        font-size: 1rem;
+        opacity: 0.95;
+    }
+    
+    .quiz-result-detail {
+        background: white;
+        border-radius: 12px;
+        padding: 16px;
+        margin-bottom: 12px;
+        border: 2px solid #e2e8f0;
+        transition: all 0.2s;
+    }
+    
+    .quiz-result-detail.correct {
+        border-color: #3b82f6;
+        background: #f0f6fc;
+    }
+    
+    .quiz-result-detail.incorrect {
+        border-color: #ef4444;
+        background: #fef2f2;
+    }
+    
+    .quiz-result-detail .result-question-title {
+        font-weight: 700;
+        margin-bottom: 8px;
+        color: #1e293b;
+    }
+    
+    .quiz-result-detail .result-answer {
+        font-size: 0.9375rem;
+        margin-bottom: 4px;
+    }
+    
+    .quiz-result-detail .result-explanation {
+        font-size: 0.875rem;
+        color: #64748b;
+        margin-top: 8px;
+        padding-top: 8px;
+        border-top: 1px solid #e2e8f0;
+    }
+
+    .quiz-panel {
+        margin-top: 1rem;
+        padding: 1rem;
+        background: var(--background-color);
+        border-radius: 10px;
+        max-height: 400px;
+        overflow-y: auto;
+    }
+
+    .study-quiz-form {
+        display: flex !important;
+        flex-direction: column;
+        gap: 20px;
+    }
+
+    .study-quiz-actions {
+        margin-top: 1rem;
+        display: flex;
+        gap: 0.75rem;
+    }
+
+    .ai-assistant-btn {
+        position: fixed;
+        right: 2rem;
+        bottom: 2rem;
+        width: 3.5rem;
+        height: 3.5rem;
+        border-radius: 50%;
+        background: var(--primary-color);
+        color: white;
+        border: none;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.2rem;
+        font-weight: bold;
+        cursor: pointer;
+        box-shadow: 0 4px 12px rgba(29, 78, 137, 0.4);
+        transition: all 0.25s ease;
+        z-index: 1000;
+    }
+
+    .ai-assistant-btn:hover {
+        transform: scale(1.1);
+        box-shadow: 0 6px 20px rgba(29, 78, 137, 0.5);
+        background: #1a4276;
+    }
+
+    .empty-state {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        background: var(--background-color);
+        text-align: center;
+        padding: 3rem;
+    }
+
+    .empty-state-icon {
+        font-size: 5rem;
+        margin-bottom: 1.5rem;
+        opacity: 0.3;
+    }
+
+    .empty-state-title {
+        font-size: 1.4rem;
+        font-weight: 700;
+        color: var(--text-primary);
+        margin-bottom: 0.75rem;
+    }
+
+    .empty-state-desc {
+        font-size: 1rem;
+        color: var(--text-secondary);
+        line-height: 1.6;
+    }
+
+    @media (max-width: 1024px) {
+        .course-study-container {
+            flex-direction: column;
+        }
+
+        .materials-sidebar {
+            width: 100%;
+            border-right: none;
+            border-bottom: 1px solid var(--border-color);
+            max-height: 40vh;
+        }
+
+        .materials-list-wrapper {
+            max-height: calc(40vh - 80px);
+        }
+
+        .main-content-area {
+            flex: 1;
+        }
+
+        .progress-bar-container {
+            width: 150px;
+        }
+    }
+
+    @media (max-width: 768px) {
+        .materials-sidebar {
+            max-height: 35vh;
+        }
+
+        .materials-sidebar-header {
+            padding: 1rem;
+        }
+
+        .materials-sidebar-header h1 {
+            font-size: 1rem;
+        }
+
+        .material-item {
+            padding: 0.75rem;
+        }
+
+        .material-icon-wrapper {
+            width: 32px;
+            height: 32px;
+            font-size: 1rem;
+        }
+
+        .content-header {
+            padding: 1rem;
+        }
+
+        .content-title {
+            font-size: 1.1rem;
+        }
+
+        .viewer-wrapper {
+            margin: 0.5rem;
+        }
+
+        .viewer-placeholder {
+            padding: 2rem 1rem;
+        }
+
+        .text-content-viewer {
+            padding: 1rem;
+        }
+
+        .study-tools-bar {
+            padding: 0.75rem 1rem;
+        }
+
+        .mode-selector {
+            order: 2;
+            width: 100%;
+            justify-content: center;
+        }
+
+        .learning-progress-bar {
+            order: 1;
+            width: 100%;
+            justify-content: center;
+        }
+
+        .progress-bar-container {
+            width: 120px;
+        }
+
+        .ai-assistant-btn {
+            right: 1rem;
+            bottom: 1rem;
+        }
+
+        .course-ai-drawer-panel {
+            width: 100% !important;
+            max-width: none !important;
+            border-radius: 16px 16px 0 0 !important;
+        }
+    }
+
+    #courseAiDrawer {
+        position: fixed;
+        top: 0;
+        right: 0;
+        bottom: 0;
+        width: 0;
+        z-index: 9999;
+        transition: width 0.3s ease;
+        overflow: hidden;
+        background: rgba(0, 0, 0, 0);
+        pointer-events: none;
+    }
+
+    #courseAiDrawer:not(.hidden) {
+        width: 100%;
+        pointer-events: auto;
+        background: rgba(0, 0, 0, 0.3);
+    }
+
+    .course-ai-chat {
+        position: absolute;
+        top: 0;
+        right: 0;
+        bottom: 0;
+        width: 420px;
+        max-width: calc(100% - 2rem);
+        background: white;
+        display: flex;
+        flex-direction: column;
+        box-shadow: -4px 0 20px rgba(0, 0, 0, 0.1);
+        border-radius: 16px 0 0 16px;
+        transform: translateX(100%);
+        transition: transform 0.3s ease;
+        overflow: hidden;
+    }
+
+    #courseAiDrawer:not(.hidden) .course-ai-chat {
+        transform: translateX(0);
+    }
+
+    .course-ai-header {
+        padding: 1rem 1.25rem;
+        border-bottom: 1px solid var(--border-color);
+        background: #fafbfc;
+        flex-shrink: 0;
+    }
+
+    .course-ai-header-title {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+    }
+
+    .course-ai-header-title h3 {
+        font-size: 0.95rem;
+        font-weight: 700;
+        color: var(--text-primary);
+        margin: 0;
+    }
+
+    .course-ai-header-actions {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+    }
+
+    .course-ai-badge {
+        padding: 0.25rem 0.6rem;
+        background: rgba(29, 78, 137, 0.1);
+        color: var(--primary-color);
+        font-size: 0.7rem;
+        font-weight: 700;
+        border-radius: 20px;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
+
+    .course-ai-close-btn {
+        width: 28px;
+        height: 28px;
+        border: none;
+        background: transparent;
+        color: var(--text-secondary);
+        font-size: 1.2rem;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 50%;
+        transition: all 0.2s ease;
+    }
+
+    .course-ai-close-btn:hover {
+        background: rgba(0, 0, 0, 0.05);
+        color: var(--text-primary);
+    }
+
+    .course-ai-mode-copy {
+        font-size: 0.8rem;
+        color: var(--text-secondary);
+        margin-top: 0.5rem;
+        line-height: 1.5;
+    }
+
+    #courseAiMessages {
+        flex: 1;
+        overflow-y: auto;
+        padding: 1rem;
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+        background: #fafbfc;
+    }
+
+    .course-ai-message {
+        display: flex;
+        gap: 0.75rem;
+        animation: fadeIn 0.3s ease both;
+    }
+
+    .course-ai-message.user {
+        flex-direction: row-reverse;
+    }
+
+    .course-ai-avatar {
+        width: 32px;
+        height: 32px;
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+        font-size: 0.8rem;
+    }
+
+    .course-ai-avatar.user {
+        background: linear-gradient(135deg, #3b82f6 0%, #3b82f6 100%);
+        color: white;
+    }
+
+    .course-ai-avatar.assistant {
+        background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+        color: white;
+    }
+
+    .course-ai-bubble {
+        max-width: 80%;
+        padding: 0.75rem 1rem;
+        border-radius: 14px;
+        font-size: 0.85rem;
+        line-height: 1.6;
+        position: relative;
+    }
+
+    .course-ai-message.user .course-ai-bubble {
+        background: var(--primary-color);
+        color: white;
+        border-bottom-right-radius: 3px;
+    }
+
+    .course-ai-message.assistant .course-ai-bubble {
+        background: white;
+        color: var(--text-primary);
+        border: 1px solid var(--border-color);
+        border-bottom-left-radius: 3px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
+    }
+
+    .course-ai-composer {
+        padding: 1rem;
+        border-top: 1px solid var(--border-color);
+        background: white;
+        flex-shrink: 0;
+    }
+
+    .course-ai-composer textarea {
+        width: 100%;
+        min-height: 60px;
+        padding: 0.75rem 1rem;
+        border-radius: 10px;
+        border: 1px solid var(--border-color);
+        font-size: 0.85rem;
+        line-height: 1.5;
+        resize: vertical;
+        transition: all 0.2s ease;
+        font-family: inherit;
+        box-sizing: border-box;
+    }
+
+    .course-ai-composer textarea:focus {
+        outline: none;
+        border-color: var(--primary-color);
+        box-shadow: 0 0 0 3px rgba(29, 78, 137, 0.08);
+    }
+
+    .course-ai-composer textarea::placeholder {
+        color: var(--text-secondary);
+        opacity: 0.7;
+    }
+
+    .course-ai-quick-prompts {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+        margin-top: 0.75rem;
+    }
+
+    .course-ai-quick-prompt {
+        padding: 0.4rem 0.75rem;
+        background: rgba(29, 78, 137, 0.06);
+        color: var(--primary-color);
+        border: 1px solid rgba(29, 78, 137, 0.15);
+        border-radius: 20px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+
+    .course-ai-quick-prompt:hover {
+        background: rgba(29, 78, 137, 0.1);
+        border-color: rgba(29, 78, 137, 0.25);
+    }
+
+    .course-ai-actions {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+        margin-top: 0.75rem;
+    }
+
+    .course-ai-actions button {
+        padding: 0.55rem 1.25rem;
+        background: var(--primary-color);
+        color: white;
+        border: none;
+        border-radius: 8px;
+        font-size: 0.825rem;
+        font-weight: 700;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        box-shadow: 0 2px 6px rgba(29, 78, 137, 0.2);
+    }
+
+    .course-ai-actions button:hover:not(:disabled) {
+        background: #1a4276;
+        transform: translateY(-1px);
+        box-shadow: 0 4px 10px rgba(29, 78, 137, 0.25);
+    }
+
+    .course-ai-actions button:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+    }
+
+    .course-ai-evidence {
+        margin-top: 0.75rem;
+        padding: 0.75rem;
+        background: rgba(248, 250, 252, 0.95);
+        border-radius: 8px;
+        border: 1px solid var(--border-color);
+    }
+
+    .course-ai-evidence-title {
+        font-size: 0.72rem;
+        font-weight: 700;
+        color: var(--text-secondary);
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        margin-bottom: 0.4rem;
+    }
+
+    .course-ai-reference-list {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.35rem;
+    }
+
+    .course-ai-reference {
+        padding: 0.3rem 0.55rem;
+        background: white;
+        border: 1px solid var(--border-color);
+        border-radius: 6px;
+        font-size: 0.7rem;
+        color: #3b82f6;
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+
+    .course-ai-reference:hover {
+        background: #eff6ff;
+        border-color: #bfdbfe;
+    }
+
+    .course-ai-typing-indicator {
+        display: flex;
+        align-items: center;
+        gap: 0.25rem;
+    }
+
+    .course-ai-typing-dot {
+        width: 5px;
+        height: 5px;
+        background: var(--text-secondary);
+        border-radius: 50%;
+        animation: typing 1.4s infinite ease-in-out;
+    }
+
+    .course-ai-typing-dot:nth-child(1) { animation-delay: 0s; }
+    .course-ai-typing-dot:nth-child(2) { animation-delay: 0.2s; }
+    .course-ai-typing-dot:nth-child(3) { animation-delay: 0.4s; }
+
+    @keyframes typing {
+        0%, 80%, 100% { transform: scale(0.8); opacity: 0.5; }
+        40% { transform: scale(1); opacity: 1; }
+    }
+
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(8px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+
+    .course-ai-structured-response {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+
+    .course-ai-response-section {
+        padding: 0.6rem 0.7rem;
+        border-radius: 10px;
+        border: 1px solid var(--border-color);
+        background: rgba(248, 250, 252, 0.9);
+    }
+
+    .course-ai-response-section-title {
+        font-size: 0.7rem;
+        font-weight: 700;
+        color: var(--text-secondary);
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
+
+    .course-ai-response-section-body {
+        margin-top: 0.25rem;
+        font-size: 0.82rem;
+        line-height: 1.6;
+        color: var(--text-primary);
+    }
+
+    /* Utility classes */
+    .text-sm {
+        font-size: 0.875rem;
+    }
+
+    .text-gray-600 {
+        color: #64748b;
+    }
+
+    .text-slate-500 {
+        color: #64748b;
+    }
+
+    .mt-2 {
+        margin-top: 0.5rem;
+    }
+
+    .btn-explain {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border: none;
+        padding: 8px 16px;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 0.85rem;
+        font-weight: 600;
+        transition: all 0.2s ease;
+    }
+
+    .btn-explain:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="course-study-container">
+    <div class="materials-sidebar">
+        <div class="materials-sidebar-header">
+            <h1>{{ course.title }}</h1>
+            <p>{{ course.description|truncatewords:20 }}</p>
+            <div class="materials-sidebar-stats">
+                <div class="materials-sidebar-stat-item"><span>{{ materials|length }}</span> 资料</div>
+                <div class="materials-sidebar-stat-item"><span>{{ course.created_at|date:"Y-m-d" }}</span></div>
+                {% if course.status == 'published' %}
+                <div class="materials-sidebar-stat-item"><span>已发布</span></div>
+                {% else %}
+                <div class="materials-sidebar-stat-item"><span>草稿</span></div>
+                {% endif %}
+            </div>
+        </div>
+        
+        <div class="materials-list-wrapper">
+            <div class="materials-list">
+                {% for material in materials %}
+                    <a href="?material={{ material.id }}" class="material-item {% if selected_material and selected_material.id == material.id %}active{% endif %}">
+                        <div class="material-icon-wrapper material-icon-{{ material.material_type }}">
+                            {% if material.material_type == 'pdf' %}📕{% elif material.material_type == 'ppt' %}📊{% elif material.material_type == 'doc' %}📄{% elif material.material_type == 'image' %}🖼️{% elif material.material_type == 'video' %}🎬{% else %}📎{% endif %}
+                        </div>
+                        <div class="material-info">
+                            <div class="material-title">{{ material.title }}</div>
+                            <div class="material-meta">
+                                <span>{{ material.material_type_display }}</span>
+                                {% if material.page_count %}<span>{{ material.page_count }} 页</span>{% endif %}
+                            </div>
+                            {% if selected_material and selected_material.id == material.id and has_learning_progress %}
+                                <div class="material-progress-bar">
+                                    <div class="material-progress-fill" style="width: {{ learning_progress.progress_percentage }}%"></div>
+                                </div>
+                                <div class="material-progress-text">{{ learning_progress.progress_percentage }}% 完成</div>
+                            {% endif %}
+                        </div>
+                    </a>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <div class="main-content-area">
+        {% if selected_material %}
+            <div class="content-header">
+                <div class="content-header-left">
+                    <h2 class="content-title">{{ selected_material.title }}</h2>
+                    <p class="content-subtitle">类型：{{ selected_material.material_type_display }} | 页数：{{ selected_material.page_count }} | 大小：{{ selected_material.file_size|filesizeformat }}</p>
+                </div>
+                <div class="content-actions">
+                    <a href="{{ selected_material.file.url }}" class="btn btn-outline" download>
+                        <span>📥</span> 下载资料
+                    </a>
+                    <button class="btn btn-primary" onclick="window.__openCourseAiPanel()">
+                        <span>🤖</span> 问AI助教
+                    </button>
+                </div>
+            </div>
+
+            <div class="viewer-container">
+                <div class="viewer-wrapper" id="viewerWrapper">
+                    {% if preview_kind == 'pdf' %}
+                        <div class="viewer-toolbar">
+                            <div class="viewer-toolbar-left">
+                                <button class="btn" onclick="prevPage()" title="上一页">
+                                    <span>◀</span> 上一页
+                                </button>
+                                <button class="btn" onclick="nextPage()" title="下一页">
+                                    下一页 <span>▶</span>
+                                </button>
+                            </div>
+                            <div class="viewer-toolbar-right">
+                                <div class="page-input">
+                                    <span>第</span>
+                                    <input type="number" id="pageInput" min="1" max="{{ selected_material.page_count|default:1 }}" value="{{ initial_page }}">
+                                    <span>页 / {{ selected_material.page_count|default:1 }}</span>
+                                </div>
+                                <button class="btn" onclick="setViewerPage()" title="跳转">
+                                    跳转
+                                </button>
+                                <button class="btn" id="fullscreenToggleBtn" onclick="toggleViewerFullscreen()" title="全屏查看">
+                                    <span>⛶</span> 全屏
+                                </button>
+                            </div>
+                        </div>
+                        <iframe id="studyViewerFrame" class="viewer-frame" src="" frameborder="0"></iframe>
+                    {% elif preview_kind == 'image' %}
+                        <div class="viewer-toolbar">
+                            <div class="viewer-toolbar-right">
+                                <span class="page-info">图片资料</span>
+                            </div>
+                        </div>
+                        <div class="viewer-frame" style="display: flex; align-items: center; justify-content: center; background: #fafafa;">
+                            <img src="{{ selected_material.file.url }}" alt="{{ selected_material.title }}" class="max-h-full max-w-full object-contain">
+                        </div>
+                    {% elif selected_material.extracted_text %}
+                        <div class="text-content-viewer">
+                            <h2>{{ selected_material.title }}</h2>
+                            <div>{{ selected_material.extracted_text|linebreaks }}</div>
+                        </div>
+                    {% elif selected_material.material_type == 'ppt' %}
+                        <div class="viewer-placeholder">
+                            <div class="viewer-placeholder-icon">📊</div>
+                            <div class="viewer-placeholder-title">PPT 演示文稿</div>
+                            <div class="viewer-placeholder-desc">
+                                当前浏览器不支持直接预览PPT文件。<br>
+                                请点击下方按钮下载后使用 PowerPoint 或 WPS 查看。
+                            </div>
+                            <a href="{{ selected_material.file.url }}" class="btn btn-primary" download>
+                                <span>📥</span> 下载 PPT
+                            </a>
+                        </div>
+                    {% elif selected_material.material_type == 'video' %}
+                        <div class="viewer-placeholder">
+                            <div class="viewer-placeholder-icon">🎬</div>
+                            <div class="viewer-placeholder-title">视频资料</div>
+                            <div class="viewer-placeholder-desc">
+                                当前浏览器不支持直接播放该视频格式。<br>
+                                请点击下方按钮下载后观看。
+                            </div>
+                            <a href="{{ selected_material.file.url }}" class="btn btn-primary" download>
+                                <span>📥</span> 下载视频
+                            </a>
+                        </div>
+                    {% else %}
+                        <div class="viewer-placeholder">
+                            <div class="viewer-placeholder-icon">📄</div>
+                            <div class="viewer-placeholder-title">资料预览</div>
+                            <div class="viewer-placeholder-desc">
+                                该资料类型暂不支持在线预览。<br>
+                                请点击下方按钮下载后查看。
+                            </div>
+                            <a href="{{ selected_material.file.url }}" class="btn btn-primary" download>
+                                <span>📥</span> 下载资料
+                            </a>
+                        </div>
+                    {% endif %}
+
+                    {% if preview_kind == 'pdf' %}
+                    <div class="viewer-controls">
+                        <div class="page-input">
+                            <button class="btn" onclick="prevPage()">上一页</button>
+                            <span>第</span>
+                            <input type="number" id="pageInput2" min="1" max="{{ selected_material.page_count|default:1 }}" value="{{ initial_page }}">
+                            <span>页</span>
+                            <button class="btn" onclick="setViewerPage()">跳转</button>
+                            <button class="btn" onclick="nextPage()">下一页</button>
+                        </div>
+                        <div class="page-info">共 {{ selected_material.page_count|default:1 }} 页</div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="quiz-section">
+                <div class="quiz-header">
+                    <div class="quiz-title">智能自测</div>
+                    <div class="quiz-controls">
+                        <label for="materialQuizType" class="text-sm text-gray-600">题目类型：</label>
+                        <select id="materialQuizType" class="quiz-type-select">
+                            <option value="mixed">混合题型</option>
+                            <option value="single_choice">仅选择题</option>
+                            <option value="short_answer">仅简答题</option>
+                            <option value="true_false">仅判断题</option>
+                        </select>
+                        <label for="materialQuizCount" class="text-sm text-gray-600">题目数量：</label>
+                        <input type="number" id="materialQuizCount" class="quiz-count-input" min="3" max="20" value="5" placeholder="3-20">
+                        <button id="generateMaterialQuizBtn" class="btn btn-primary">生成练习题</button>
+                        <span id="materialQuizStatus" class="quiz-status">准备就绪</span>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 题目对话框 -->
+            <div id="quizModal" class="quiz-modal hidden">
+                <div class="quiz-modal-overlay">
+                    <div class="quiz-modal-container">
+                        <div class="quiz-modal-header">
+                            <h3>📋 练习题</h3>
+                            <button type="button" id="closeQuizModalBtn" class="quiz-modal-close">&times;</button>
+                        </div>
+                        <div class="quiz-modal-scroll-area">
+                            <div id="quizModalBody" class="quiz-modal-body"></div>
+                            <div id="quizModalResult" class="quiz-modal-result"></div>
+                        </div>
+                        <div class="quiz-modal-footer">
+                            <button id="submitModalQuizBtn" type="button" class="btn btn-primary btn-submit">提交答案</button>
+                            <button id="closeModalBtn" type="button" class="btn btn-secondary btn-close-modal hidden">关闭</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        {% else %}
+            <div class="empty-state">
+                <div class="empty-state-icon">📚</div>
+                <div class="empty-state-title">选择学习资料</div>
+                <div class="empty-state-desc">请从左侧列表中选择一份学习资料开始学习</div>
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+<button type="button" id="courseAiFab" class="ai-assistant-btn" aria-controls="courseAiDrawer" aria-expanded="false">
+    AI
+</button>
+
+<div id="courseAiDrawer" class="hidden" aria-hidden="true">
+    <aside class="course-ai-chat" aria-label="课程 AI 助教">
+        <div class="course-ai-header">
+            <div class="course-ai-header-title">
+                <h3 id="courseAiPanelTitle">课程 AI 助教</h3>
+                <div class="course-ai-header-actions">
+                    <span class="course-ai-badge" id="courseAiModeBadge">Course AI</span>
+                    <button type="button" id="courseAiCloseBtn" class="course-ai-close-btn" aria-label="关闭 AI 对话">×</button>
+                </div>
+            </div>
+            <div class="course-ai-mode-copy" id="courseAiModeCopy">直接提问，我会尽量用简洁的方式回答。</div>
+        </div>
+        <div id="courseAiMessages"></div>
+        <div class="course-ai-composer">
+            <textarea id="courseAiInput" placeholder="直接提问，例如：这份资料和课程里其他资料是怎么衔接的？"></textarea>
+            <div id="courseAiQuickPrompts" class="course-ai-quick-prompts"></div>
+            <div class="course-ai-actions">
+                <div id="courseAiStatus" class="text-sm text-slate-500">课程 AI 已就绪。</div>
+                <button id="courseAiSendBtn" type="button">发送问题</button>
+            </div>
+        </div>
+    </aside>
+</div>
+
+<script>
+window.__COURSE_AI_CONTEXT__ = {
+    courseId: {{ course.id }},
+    studyUrl: "{% url 'course_study' course.id %}"
+};
+</script>
+{{ course.title|json_script:"course-ai-course-title" }}
+{% if selected_material %}{{ selected_material.id|json_script:"course-ai-material-id" }}{% endif %}
+{% if selected_material %}{{ selected_material.title|json_script:"course-ai-material-title" }}{% endif %}
+<link rel="stylesheet" href="https://registry.npmmirror.com/katex/0.16.11/files/dist/katex.min.css">
+<script src="https://registry.npmmirror.com/katex/0.16.11/files/dist/katex.min.js"></script>
+<script src="https://registry.npmmirror.com/katex/0.16.11/files/dist/contrib/auto-render.min.js"></script>
+<script src="https://registry.npmmirror.com/mermaid/10.9.1/files/dist/mermaid.min.js"></script>
+<script>try{ if(window.mermaid) window.mermaid.initialize({ startOnLoad:false, securityLevel:'strict', theme:'neutral' }); }catch(e){}</script>
+<script src="{% static 'course_ai/chat.js' %}?v=20260718c"></script>
+
+<script>
+(function(){
+    const studyPage = document.querySelector('.course-study-container');
+    if (!studyPage) return;
+
+    const modeButtons = Array.from(document.querySelectorAll('.mode-btn'));
+    const aiDrawer = document.getElementById('courseAiDrawer');
+    const aiFab = document.getElementById('courseAiFab');
+    const aiCloseBtn = document.getElementById('courseAiCloseBtn');
+    const aiInput = document.getElementById('courseAiInput');
+    const aiSendBtn = document.getElementById('courseAiSendBtn');
+    const generateQuizBtn = document.getElementById('generateMaterialQuizBtn');
+    const aiPanelTitle = document.getElementById('courseAiPanelTitle');
+    const aiModeBadge = document.getElementById('courseAiModeBadge');
+    const aiModeCopy = document.getElementById('courseAiModeCopy');
+    const aiStatus = document.getElementById('courseAiStatus');
+    const aiQuickPrompts = document.getElementById('courseAiQuickPrompts');
+    const aiSendButton = document.getElementById('courseAiSendBtn');
+    let dynamicQuizPrompts = null;
+
+    function setAiPanelOpen(isOpen, options) {
+        const nextOpen = Boolean(isOpen);
+        if (aiDrawer) {
+            aiDrawer.classList.toggle('hidden', !nextOpen);
+            aiDrawer.setAttribute('aria-hidden', nextOpen ? 'false' : 'true');
+        }
+        if (aiFab) {
+            aiFab.setAttribute('aria-expanded', nextOpen ? 'true' : 'false');
+        }
+        if (nextOpen) {
+            window.requestAnimationFrame(function(){
+                if (window.__courseAiHelpers && typeof window.__courseAiHelpers.scrollToBottom === 'function') {
+                    window.__courseAiHelpers.scrollToBottom();
+                }
+            });
+        }
+        if (nextOpen && options && options.focusInput && aiInput) {
+            window.requestAnimationFrame(function(){
+                aiInput.focus();
+            });
+        }
+    }
+
+    window.__openCourseAiPanel = function(options) {
+        setAiPanelOpen(true, options || {});
+    };
+
+    window.__closeCourseAiPanel = function() {
+        setAiPanelOpen(false);
+    };
+
+    const modeCopy = {
+        reading: {
+            description: '先顺着资料阅读，有卡点时再切到提问或自测。',
+            footnote: '当前处于阅读模式，页面会优先突出资料内容。',
+            aiTitle: '课程 AI 阅读助教',
+            aiBadge: 'Reading',
+            aiModeCopy: '先专注阅读资料。遇到概念、定义或例题不清楚时，再随时让我解释。',
+            aiPlaceholder: '例如：这份资料里的"总线仲裁"是什么意思？',
+            aiStatus: '阅读模式已开启，需要解释时随时提问。',
+            quickPrompts: [
+                '这份资料当前最重要的概念是什么？',
+                '帮我用更简单的话解释这一段。',
+                '这份资料和前面的知识点怎么衔接？'
+            ]
+        },
+        asking: {
+            description: '围绕当前资料发问，AI 会结合整门课做回答。',
+            footnote: '当前处于提问模式，可以直接连续追问。',
+            aiTitle: '课程 AI 提问助教',
+            aiBadge: 'Asking',
+            aiModeCopy: '现在适合围绕当前资料继续追问概念、例题和知识联系。',
+            aiPlaceholder: '例如：这页内容和前面讲的流水线冲突之间是什么关系？',
+            aiStatus: '提问模式已开启，可以直接追问当前资料。',
+            quickPrompts: [
+                '这部分内容常见会怎么考？',
+                '请结合课程其他资料补充解释这个知识点。',
+                '帮我列出理解这页必须抓住的 3 个要点。'
+            ]
+        },
+        quiz: {
+            description: '用当前资料生成小测，做完后继续让 AI 解释错因和薄弱点。',
+            footnote: '当前处于自测模式，练习区会被置为本轮学习主舞台。',
+            aiTitle: '课程 AI 讲评助教',
+            aiBadge: 'Quiz',
+            aiModeCopy: '先完成当前资料小测。答完后，你可以直接让我解释错题和薄弱点。',
+            aiPlaceholder: '例如：第 2 题我为什么错了？应该回看哪一部分？',
+            aiStatus: '自测模式已开启，做完题后可以继续让我讲评。',
+            quickPrompts: [
+                '帮我讲评刚才这组题的易错点。',
+                '如果第 2 题错了，我应该回看哪一页？',
+                '根据这组题，帮我判断我最薄弱的是哪一块。'
+            ]
+        }
+    };
+
+    function renderQuickPrompts(items) {
+        if (!aiQuickPrompts) return;
+        const prompts = Array.isArray(items) ? items : [];
+        aiQuickPrompts.innerHTML = prompts.map(function(promptText){
+            return '<button type="button" class="course-ai-quick-prompt" data-quick-prompt="' +
+                promptText.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;') +
+                '">' +
+                promptText.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;') +
+                '</button>';
+        }).join('');
+    }
+
+    function getQuickPromptsForMode(mode) {
+        if (mode === 'quiz' && Array.isArray(dynamicQuizPrompts) && dynamicQuizPrompts.length) {
+            return dynamicQuizPrompts;
+        }
+        return modeCopy[mode].quickPrompts;
+    }
+
+    function setMode(mode) {
+        const nextMode = modeCopy[mode] ? mode : 'reading';
+        document.body.setAttribute('data-study-mode', nextMode);
+        modeButtons.forEach(function(button){
+            const active = button.getAttribute('data-mode-target') === nextMode;
+            button.classList.toggle('active', active);
+            button.setAttribute('aria-selected', active ? 'true' : 'false');
+        });
+        if (aiPanelTitle) {
+            aiPanelTitle.textContent = modeCopy[nextMode].aiTitle;
+        }
+        if (aiModeBadge) {
+            aiModeBadge.textContent = modeCopy[nextMode].aiBadge;
+        }
+        if (aiModeCopy) {
+            aiModeCopy.textContent = modeCopy[nextMode].aiModeCopy;
+        }
+        if (aiInput) {
+            aiInput.placeholder = modeCopy[nextMode].aiPlaceholder;
+        }
+        if (aiStatus) {
+            aiStatus.textContent = modeCopy[nextMode].aiStatus;
+        }
+        renderQuickPrompts(getQuickPromptsForMode(nextMode));
+        if (nextMode === 'asking') {
+            setAiPanelOpen(true);
+        }
+    }
+
+    window.__setStudyMode = setMode;
+
+    window.__setCourseAiDynamicQuizPrompts = function(prompts) {
+        dynamicQuizPrompts = Array.isArray(prompts) ? prompts.filter(Boolean).slice(0, 3) : null;
+        if (document.body.getAttribute('data-study-mode') === 'quiz') {
+            renderQuickPrompts(getQuickPromptsForMode('quiz'));
+        }
+    };
+
+    window.__clearCourseAiDynamicQuizPrompts = function() {
+        dynamicQuizPrompts = null;
+        if (document.body.getAttribute('data-study-mode') === 'quiz') {
+            renderQuickPrompts(getQuickPromptsForMode('quiz'));
+        }
+    };
+
+    modeButtons.forEach(function(button){
+        button.addEventListener('click', function(){
+            const nextMode = button.getAttribute('data-mode-target');
+            if (nextMode === 'asking') {
+                setAiPanelOpen(true);
+            }
+            setMode(nextMode);
+        });
+    });
+
+    if (aiFab) {
+        if (document.body && aiFab.parentElement !== document.body) {
+            document.body.appendChild(aiFab);
+        }
+        aiFab.addEventListener('click', function(){
+            const isOpening = !aiDrawer || aiDrawer.classList.contains('hidden');
+            setAiPanelOpen(isOpening, isOpening ? { focusInput: true } : null);
+        });
+    }
+
+    if (aiDrawer && document.body && aiDrawer.parentElement !== document.body) {
+        document.body.appendChild(aiDrawer);
+    }
+
+    if (aiCloseBtn) {
+        aiCloseBtn.addEventListener('click', function(){
+            setAiPanelOpen(false);
+        });
+    }
+
+    document.addEventListener('keydown', function(event){
+        if (event.key === 'Escape') {
+            setAiPanelOpen(false);
+        }
+    });
+
+    if (aiInput) {
+        aiInput.addEventListener('focus', function(){
+            setAiPanelOpen(true);
+            setMode('asking');
+        });
+    }
+
+    if (aiSendBtn) {
+        aiSendBtn.addEventListener('click', function(){
+            setAiPanelOpen(true);
+            setMode('asking');
+            if (window.__courseAiHelpers && typeof window.__courseAiHelpers.scrollToBottom === 'function') {
+                window.__courseAiHelpers.scrollToBottom();
+            }
+        }, true);
+    }
+
+    
+
+    if (aiQuickPrompts) {
+        aiQuickPrompts.addEventListener('click', function(event){
+            const target = event.target.closest('[data-quick-prompt]');
+            if (!target || !aiInput) return;
+            aiInput.value = target.getAttribute('data-quick-prompt') || '';
+            if (aiSendButton) {
+                aiSendButton.click();
+            } else {
+                aiInput.focus();
+            }
+        });
+    }
+
+    setAiPanelOpen(false);
+    setMode('reading');
+    
+    {% if selected_material and preview_kind == 'pdf' %}
+    const viewerFrame = document.getElementById('studyViewerFrame');
+    if (viewerFrame) {
+        viewerFrame.dataset.baseSrc = "{{ selected_material.file.url }}";
+        const initialPage = {{ initial_page }};
+        setViewerPage(initialPage);
+    }
+
+    function normalizePageValue(pageValue) {
+        const parsed = Number(String(pageValue || '').trim());
+        if (Number.isNaN(parsed) || parsed < 1) {
+            return '1';
+        }
+        return String(Math.floor(parsed));
+    }
+
+    function setViewerPage(pageValue) {
+        const input = document.getElementById('pageInput');
+        const input2 = document.getElementById('pageInput2');
+        const normalized = pageValue !== undefined ? normalizePageValue(pageValue) : normalizePageValue(input.value);
+        
+        if (input) input.value = normalized;
+        if (input2) input2.value = normalized;
+        
+        if (viewerFrame && viewerFrame.dataset.baseSrc) {
+            const nextSrc = viewerFrame.dataset.baseSrc + '#page=' + normalized;
+            if (viewerFrame.getAttribute('src') !== nextSrc) {
+                viewerFrame.setAttribute('src', nextSrc);
+            }
+        }
+        return normalized;
+    }
+
+    function prevPage() {
+        const input = document.getElementById('pageInput');
+        let currentPage = parseInt(input.value) || 1;
+        if (currentPage > 1) {
+            setViewerPage(currentPage - 1);
+        }
+    }
+
+    function nextPage() {
+        const input = document.getElementById('pageInput');
+        const maxPage = {{ selected_material.page_count|default:1 }};
+        let currentPage = parseInt(input.value) || 1;
+        if (currentPage < maxPage) {
+            setViewerPage(currentPage + 1);
+        }
+    }
+    function isViewerFullscreen() {
+        return !!(document.fullscreenElement || document.webkitFullscreenElement);
+    }
+
+    function toggleViewerFullscreen() {
+        const wrapper = document.getElementById('viewerWrapper');
+        if (!wrapper) return;
+        if (!isViewerFullscreen()) {
+            if (wrapper.requestFullscreen) wrapper.requestFullscreen();
+            else if (wrapper.webkitRequestFullscreen) wrapper.webkitRequestFullscreen();
+        } else {
+            if (document.exitFullscreen) document.exitFullscreen();
+            else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
+        }
+    }
+
+    function updateFullscreenBtn() {
+        const btn = document.getElementById('fullscreenToggleBtn');
+        if (!btn) return;
+        if (isViewerFullscreen()) {
+            btn.innerHTML = '<span>⤡</span> 退出全屏';
+            btn.title = '退出全屏';
+        } else {
+            btn.innerHTML = '<span>⛶</span> 全屏';
+            btn.title = '全屏查看';
+        }
+    }
+    document.addEventListener('fullscreenchange', updateFullscreenBtn);
+    document.addEventListener('webkitfullscreenchange', updateFullscreenBtn);
+
+    // 暴露到全局：内联 onclick="prevPage()/nextPage()/setViewerPage()" 只在 window 作用域查找，
+    // 且第二个 IIFE 的跨资料跳转也要用到这些函数
+    window.prevPage = prevPage;
+    window.nextPage = nextPage;
+    window.setViewerPage = setViewerPage;
+    window.normalizePageValue = normalizePageValue;
+    window.toggleViewerFullscreen = toggleViewerFullscreen;
+    {% endif %}
+})();
+</script>
+
+{% if selected_material %}
+<script>
+(function(){
+    const generateBtn = document.getElementById('generateMaterialQuizBtn');
+    const countSelect = document.getElementById('materialQuizCount');
+    const typeSelect = document.getElementById('materialQuizType');
+    const submitBtn = document.getElementById('submitMaterialQuizBtn');
+    const quizStatus = document.getElementById('materialQuizStatus');
+    const generateUrl = "{% url 'generate_material_quiz' course.id selected_material.id %}";
+    const submitUrl = "{% url 'submit_material_quiz' course.id selected_material.id %}";
+    const feedbackUrl = "{% url 'submit_material_quiz_feedback' course.id selected_material.id %}";
+    const studyUrl = "{% url 'course_study' course.id %}";
+    const selectedMaterialId = "{{ selected_material.id }}";
+    const quizModal = document.getElementById('quizModal');
+    const quizModalBody = document.getElementById('quizModalBody');
+    const quizModalResult = document.getElementById('quizModalResult');
+    const closeQuizModalBtn = document.getElementById('closeQuizModalBtn');
+    const submitModalQuizBtn = document.getElementById('submitModalQuizBtn');
+    let currentQuiz = null;
+    let currentQuizResourceId = null;
+    let currentQuizAttemptId = null;
+    
+    // 对话框控制
+    function openQuizModal() {
+        console.log('[QUIZ DEBUG] openQuizModal called');
+        console.log('[QUIZ DEBUG] quizModal:', quizModal);
+        if (quizModal) {
+            resetQuizModal();
+            console.log('[QUIZ DEBUG] Removing hidden class');
+            quizModal.classList.remove('hidden');
+            console.log('[QUIZ DEBUG] quizModal classes after remove:', quizModal.className);
+            console.log('[QUIZ DEBUG] quizModal computed display:', window.getComputedStyle(quizModal).display);
+        } else {
+            console.error('[QUIZ DEBUG] quizModal element not found!');
+        }
+    }
+    
+    function closeQuizModal() {
+        if (quizModal) {
+            quizModal.classList.add('hidden');
+        }
+    }
+    
+    let closeModalBtn = document.getElementById('closeModalBtn');
+    
+    function resetQuizModal() {
+        console.log('[QUIZ DEBUG] resetQuizModal called');
+        quizModalBody.innerHTML = '';
+        quizModalResult.innerHTML = '';
+        if (submitModalQuizBtn) { submitModalQuizBtn.classList.remove('hidden'); submitModalQuizBtn.disabled = false; }
+        if (closeModalBtn) closeModalBtn.classList.add('hidden');
+        // 不要清空 currentQuiz 和 currentQuizResourceId，保持题目数据
+        console.log('[QUIZ DEBUG] resetQuizModal completed');
+    }
+    
+    if (closeQuizModalBtn) {
+        closeQuizModalBtn.addEventListener('click', closeQuizModal);
+    }
+    
+    if (closeModalBtn) {
+        closeModalBtn.addEventListener('click', closeQuizModal);
+    }
+    
+    if (quizModal) {
+        quizModal.addEventListener('click', function(e) {
+            if (e.target === quizModal || e.target.classList.contains('quiz-modal-overlay')) {
+                closeQuizModal();
+            }
+        });
+    }
+
+    function escapeAttribute(value) {
+        return String(value || '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    }
+
+    function buildWrongQuestionExplainPrompt(item, index) {
+        const questionText = String((item && item.question) || '').trim();
+        const submittedText = String((item && item.submitted) || '').trim() || '未作答';
+        const correctText = String((item && item.correct) || '').trim() || '未提供';
+        const explanationText = String((item && item.explanation) || '').trim();
+        const knowledgeTag = String((item && item.knowledge_tag) || '').trim();
+        const sourcePage = String((item && item.source_page) || '').trim();
+        const sourceHeading = String((item && item.source_heading) || '').trim();
+        const lines = [
+            '请直接讲解这道错题，不要先反问我题目内容。',
+            '请严格按下面 5 个小标题回答：结论、为什么会错、正确区分点、回看哪里、立刻自测。',
+            '每个小标题下用 1 到 3 句话，保持短句，不要写成长段。',
+            '题号：第' + (index + 1) + '题'
+        ];
+
+        if (questionText) {
+            lines.push('题目：' + questionText);
+        }
+        lines.push('我的答案：' + submittedText);
+        lines.push('正确答案：' + correctText);
+        if (knowledgeTag) {
+            lines.push('知识点：' + knowledgeTag);
+        }
+        if (sourcePage || sourceHeading) {
+            lines.push('建议回看：' + (sourcePage ? ('第' + sourcePage + '页/张') : '') + (sourcePage && sourceHeading ? ' · ' : '') + sourceHeading);
+        }
+        if (explanationText) {
+            lines.push('参考解析：' + explanationText);
+        }
+
+        return lines.join('\n');
+    }
+
+    window.requestQuiz = function(payload, pendingText, successText) {
+        console.log('Quiz request payload:', payload);
+        generateBtn.disabled = true;
+        quizStatus.textContent = pendingText;
+        
+        // 使用AbortController设置超时（10分钟）
+        const controller = new AbortController();
+        const timeoutSeconds = 600;
+        let remainingSeconds = timeoutSeconds;
+        let countdownInterval = null;
+        
+        // 启动倒计时显示
+        const startCountdown = () => {
+            countdownInterval = setInterval(() => {
+                remainingSeconds--;
+                if (remainingSeconds > 0) {
+                    const minutes = Math.floor(remainingSeconds / 60);
+                    const seconds = remainingSeconds % 60;
+                    const timeDisplay = minutes > 0 ? `${minutes}分${seconds}秒` : `${seconds}秒`;
+                    quizStatus.textContent = pendingText + ' (' + timeDisplay + ')';
+                }
+            }, 1000);
+        };
+        
+        const stopCountdown = () => {
+            if (countdownInterval) {
+                clearInterval(countdownInterval);
+                countdownInterval = null;
+            }
+        };
+        
+        const timeoutId = setTimeout(() => controller.abort('timeout'), timeoutSeconds * 1000);
+        startCountdown();
+        
+        // 页面卸载时中止请求
+        const abortOnUnload = () => controller.abort('page_unload');
+        window.addEventListener('beforeunload', abortOnUnload, { once: true });
+        
+        fetch(generateUrl, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCookie('csrftoken')
+            },
+            body: JSON.stringify(payload || {count: 5}),
+            signal: controller.signal
+        }).then(function(response){ 
+            clearTimeout(timeoutId);
+            stopCountdown();
+            window.removeEventListener('beforeunload', abortOnUnload);
+            return response.json(); 
+        }).then(function(data){
+            console.log('[QUIZ DEBUG] Received data:', data);
+            generateBtn.disabled = false;
+            if(!(data && data.success)){
+                throw new Error((data && data.error) || '生成失败');
+            }
+            currentQuiz = data.quiz;
+            currentQuizResourceId = data.quiz_resource_id || null;
+            console.log('[QUIZ DEBUG] currentQuiz:', currentQuiz);
+            console.log('[QUIZ DEBUG] currentQuiz.questions:', currentQuiz ? currentQuiz.questions : 'N/A');
+            console.log('[QUIZ DEBUG] Quiz questions count:', currentQuiz ? (currentQuiz.questions ? currentQuiz.questions.length : 'N/A') : 'N/A');
+            if (!currentQuiz || !Array.isArray(currentQuiz.questions) || !currentQuiz.questions.length) {
+                throw new Error('当前资料暂时没能生成可作答的题目，请再试一次。');
+            }
+            console.log('[QUIZ DEBUG] Rendering quiz with', currentQuiz.questions.length, 'questions');
+            quizModalResult.innerHTML = '';
+            openQuizModal();
+            renderQuiz(currentQuiz);
+            const practiceProfile = data.practice_profile || {};
+            const profileBits = [];
+            if (practiceProfile.difficulty_label) {
+                profileBits.push('当前阶段：' + practiceProfile.difficulty_label);
+            }
+            if (practiceProfile.dedupe_removed) {
+                profileBits.push('已避开最近题目 ' + practiceProfile.dedupe_removed + ' 道');
+            }
+            quizStatus.textContent = profileBits.length ? (successText + ' ' + profileBits.join('，') + '。') : successText;
+            try {
+                if (window.__clearCourseAiDynamicQuizPrompts) {
+                    window.__clearCourseAiDynamicQuizPrompts();
+                }
+            } catch (e) {
+                console.warn('[QUIZ DEBUG] __clearCourseAiDynamicQuizPrompts error:', e);
+            }
+            try {
+                if (typeof window.__setStudyMode === 'function') {
+                    window.__setStudyMode('quiz');
+                }
+            } catch (e) {
+                console.warn('[QUIZ DEBUG] __setStudyMode error:', e);
+            }
+        }).catch(function(error){
+            clearTimeout(timeoutId);
+            stopCountdown();
+            window.removeEventListener('beforeunload', abortOnUnload);
+            console.error('[QUIZ DEBUG] Quiz generation error:', error);
+            generateBtn.disabled = false;
+            
+            // 提供更友好的错误消息
+            let errorMessage = '生成失败';
+            if (error.name === 'AbortError') {
+                if (remainingSeconds <= 0) {
+                    errorMessage = '生成题目需要较长时间，建议稍后再试或减少题目数量。';
+                } else {
+                    errorMessage = '请求已取消，请重试。';
+                }
+            } else if (error.message) {
+                errorMessage = error.message;
+            }
+            quizStatus.textContent = errorMessage;
+        });
+    };
+
+    window.__courseStudyHelpers = {
+        selectedMaterialId: selectedMaterialId,
+        goToMaterialPage: function(materialId, pageValue) {
+            if (!materialId || String(materialId) === String(selectedMaterialId)) {
+                if (pageValue && window.setViewerPage) {
+                    window.setViewerPage(pageValue);
+                }
+                return;
+            }
+            window.location.href = buildStudyUrl(materialId, pageValue);
+        }
+    };
+
+    function buildStudyUrl(materialId, pageValue) {
+        const targetUrl = new URL(studyUrl, window.location.origin);
+        if (materialId) {
+            targetUrl.searchParams.set('material', String(materialId));
+        }
+        if (pageValue) {
+            const np = window.normalizePageValue ? window.normalizePageValue(pageValue) : String(pageValue);
+            targetUrl.searchParams.set('page', np);
+        }
+        return targetUrl.toString();
+    }
+
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+
+    function renderQuiz(quizData) {
+        if (!quizData || !Array.isArray(quizData.questions) || !quizModalBody) {
+            return;
+        }
+        
+        const quizForm = document.createElement('form');
+        quizForm.id = 'quizModalForm';
+        quizForm.className = 'study-quiz-form';
+        quizForm.innerHTML = quizData.questions.map(function(question, index){
+            const questionId = 'question_' + index;
+            const safeQuestion = escapeAttribute(question.question || '');
+            const safeOptions = (question.options || []).map(function(option){
+                return escapeAttribute(option);
+            });
+            const safeKnowledgeTag = escapeAttribute(question.knowledge_tag || '');
+            const safeSourcePage = escapeAttribute(question.source_page || '');
+            const safeSourceHeading = escapeAttribute(question.source_heading || '');
+            
+            var questionType = question.type || question.question_type || '';
+            var optionLetters = ['A', 'B', 'C', 'D', 'E', 'F'];
+            var metaTags = [];
+            if (safeKnowledgeTag) metaTags.push('<span class="quiz-question-tag">知识点：' + safeKnowledgeTag + '</span>');
+            if (safeSourcePage) metaTags.push('<span class="quiz-question-tag">第' + safeSourcePage + '页</span>');
+            if (safeSourceHeading) metaTags.push('<span class="quiz-question-tag">' + safeSourceHeading + '</span>');
+            var metaHtml = metaTags.length ? '<div class="quiz-question-meta">' + metaTags.join('') + '</div>' : '';
+            
+            if (questionType === 'single_choice') {
+                return '<div class="quiz-question">' +
+                    '<div class="quiz-question-header">' +
+                        '<span class="quiz-question-number">' + (index + 1) + '</span>' +
+                        '<span class="quiz-question-text">' + safeQuestion + '</span>' +
+                        '<span class="quiz-question-type">单选题</span>' +
+                    '</div>' +
+                    '<div class="quiz-options">' +
+                        safeOptions.map(function(option, optIndex){
+                            var letter = optionLetters[optIndex] || String(optIndex + 1);
+                            return '<label class="quiz-option">' +
+                                '<span class="quiz-option-letter">' + letter + '</span>' +
+                                '<input type="radio" name="' + questionId + '" value="' + option + '" id="' + questionId + '_' + optIndex + '">' +
+                                '<span class="quiz-option-label">' + option + '</span>' +
+                            '</label>';
+                        }).join('') +
+                    '</div>' +
+                    metaHtml +
+                '</div>';
+            } else if (questionType === 'multiple_choice') {
+                return '<div class="quiz-question">' +
+                    '<div class="quiz-question-header">' +
+                        '<span class="quiz-question-number">' + (index + 1) + '</span>' +
+                        '<span class="quiz-question-text">' + safeQuestion + '</span>' +
+                        '<span class="quiz-question-type">多选题</span>' +
+                    '</div>' +
+                    '<div class="quiz-options">' +
+                        safeOptions.map(function(option, optIndex){
+                            var letter = optionLetters[optIndex] || String(optIndex + 1);
+                            return '<label class="quiz-option">' +
+                                '<span class="quiz-option-letter">' + letter + '</span>' +
+                                '<input type="checkbox" name="' + questionId + '" value="' + option + '" id="' + questionId + '_' + optIndex + '">' +
+                                '<span class="quiz-option-label">' + option + '</span>' +
+                            '</label>';
+                        }).join('') +
+                    '</div>' +
+                    metaHtml +
+                '</div>';
+            } else if (questionType === 'true_false') {
+                return '<div class="quiz-question">' +
+                    '<div class="quiz-question-header">' +
+                        '<span class="quiz-question-number">' + (index + 1) + '</span>' +
+                        '<span class="quiz-question-text">' + safeQuestion + '</span>' +
+                    '</div>' +
+                    '<div class="quiz-options">' +
+                        '<label class="quiz-option">' +
+                            '<span class="quiz-option-letter">A</span>' +
+                            '<input type="radio" name="' + questionId + '" value="正确" id="' + questionId + '_true">' +
+                            '<span class="quiz-option-label">正确</span>' +
+                        '</label>' +
+                        '<label class="quiz-option">' +
+                            '<span class="quiz-option-letter">B</span>' +
+                            '<input type="radio" name="' + questionId + '" value="错误" id="' + questionId + '_false">' +
+                            '<span class="quiz-option-label">错误</span>' +
+                        '</label>' +
+                    '</div>' +
+                    metaHtml +
+                '</div>';
+            } else {
+                return '<div class="quiz-question">' +
+                    '<div class="quiz-question-header">' +
+                        '<span class="quiz-question-number">' + (index + 1) + '</span>' +
+                        '<span class="quiz-question-text">' + safeQuestion + '</span>' +
+                    '</div>' +
+                    '<div class="quiz-short-answer">' +
+                        '<textarea name="' + questionId + '" rows="3" placeholder="请输入您的答案..."></textarea>' +
+                    '</div>' +
+                    metaHtml +
+                '</div>';
+            }
+        }).join('');
+        
+        console.log('[QUIZ DEBUG] quizForm HTML length:', quizForm.innerHTML.length);
+        quizModalBody.innerHTML = '';
+        quizModalBody.appendChild(quizForm);
+        console.log('[QUIZ DEBUG] quizModalBody children count:', quizModalBody.children.length);
+        
+        quizForm.querySelectorAll('.quiz-option input[type="radio"]').forEach(function(radio) {
+            radio.addEventListener('change', function() {
+                var questionId = this.name;
+                quizForm.querySelectorAll('.quiz-option input[name="' + questionId + '"]').forEach(function(r) {
+                    r.closest('.quiz-option').classList.remove('selected');
+                });
+                if (this.checked) {
+                    this.closest('.quiz-option').classList.add('selected');
+                }
+            });
+        });
+        
+        quizForm.querySelectorAll('.quiz-option input[type="checkbox"]').forEach(function(checkbox) {
+            checkbox.addEventListener('change', function() {
+                if (this.checked) {
+                    this.closest('.quiz-option').classList.add('selected');
+                } else {
+                    this.closest('.quiz-option').classList.remove('selected');
+                }
+            });
+        });
+    }
+
+    function submitQuiz() {
+        if (!currentQuiz || !Array.isArray(currentQuiz.questions)) {
+            quizStatus.textContent = '没有有效的测验数据';
+            return;
+        }
+        
+        const modalForm = document.getElementById('quizModalForm');
+        if (!modalForm) {
+            quizStatus.textContent = '没有找到题目表单';
+            return;
+        }
+        
+        const formData = new FormData();
+        // 添加quiz_resource_id以便后端加载题目
+        if (currentQuizResourceId) {
+            formData.append('quiz_resource_id', currentQuizResourceId);
+        }
+        currentQuiz.questions.forEach(function(question, index){
+            const questionId = 'question_' + index;
+            const answerKey = 'q' + index;  // 后端期望的key格式
+            const inputs = modalForm.querySelectorAll('input[name="' + questionId + '"], textarea[name="' + questionId + '"]');
+            console.log('[QUIZ DEBUG] Question ' + index + ': found ' + inputs.length + ' inputs');
+            if (inputs.length > 0) {
+                if (inputs[0].type === 'radio') {
+                    const checked = modalForm.querySelector('input[name="' + questionId + '"]:checked');
+                    console.log('[QUIZ DEBUG] Question ' + index + ': radio checked = ' + (checked ? checked.value : 'none'));
+                    formData.append(answerKey, checked ? checked.value : '');
+                } else if (inputs[0].type === 'checkbox') {
+                    const checkedBoxes = modalForm.querySelectorAll('input[name="' + questionId + '"]:checked');
+                    const checkedValues = Array.from(checkedBoxes).map(cb => cb.value);
+                    console.log('[QUIZ DEBUG] Question ' + index + ': checkbox checked = ' + JSON.stringify(checkedValues));
+                    formData.append(answerKey, JSON.stringify(checkedValues));
+                } else {
+                    console.log('[QUIZ DEBUG] Question ' + index + ': textarea value = ' + inputs[0].value);
+                    formData.append(answerKey, inputs[0].value);
+                }
+            }
+        });
+        
+        if (submitBtn) submitBtn.disabled = true;
+        if (submitModalQuizBtn) submitModalQuizBtn.disabled = true;
+        quizStatus.textContent = '正在评分...';
+        
+        fetch(submitUrl, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': getCookie('csrftoken')
+            },
+            body: formData
+        }).then(function(response){ return response.json(); }).then(function(data){
+            if (submitBtn) submitBtn.disabled = false;
+            if (submitModalQuizBtn) submitModalQuizBtn.disabled = true;
+            if (!(data && data.success)){
+                throw new Error((data && data.error) || '提交失败');
+            }
+            
+            let scoreHtml = '<div class="quiz-result-summary">' +
+                '<div class="result-title">🎉 测验完成！</div>' +
+                '<div class="result-score">得分：' + data.score + '分 (共' + data.total + '题，答对' + data.correct + '题)</div>' +
+                (typeof data.ability_rating === 'number' ? '<div class="result-score">当前能力评分：' + Math.round(data.ability_rating) +
+                    (typeof data.ability_rating_delta === 'number' ? ' (' + (data.ability_rating_delta >= 0 ? '+' : '') + Math.round(data.ability_rating_delta) + ')' : '') +
+                    '</div>' : '') +
+                '</div>';
+            
+            // 错题讲解提示词含换行和引号，直接内联进 onclick 字符串会导致 JS 语法错误/提前闭合；
+            // 改为按题号存入数组，onclick 只传数字索引，点击时查表调用
+            window.__wrongExplainPrompts = [];
+            let detailsHtml = (data.details || []).map(function(item, idx){
+                const isCorrect = item.correct_flag;
+                if (!isCorrect) { window.__wrongExplainPrompts[idx] = buildWrongQuestionExplainPrompt(item, idx); }
+                return '<div class="quiz-result-detail ' + (isCorrect ? 'correct' : 'incorrect') + '">' +
+                    '<div class="result-question-title">第' + (idx + 1) + '题 ' + (isCorrect ? '✓ 正确' : '✗ 错误') + '</div>' +
+                    '<div class="result-answer">题目：' + escapeAttribute(item.question || '') + '</div>' +
+                    '<div class="result-answer">你的答案：' + escapeAttribute(item.submitted || '未作答') + '</div>' +
+                    '<div class="result-answer">正确答案：' + escapeAttribute(item.correct || '') + '</div>' +
+                    (!isCorrect ? '<div class="mt-2"><button type="button" class="btn-explain" onclick="window.__askWrongExplain(' + idx + ')">💡 解释这道题</button></div>' : '') +
+                    (item.explanation ? '<div class="result-explanation">解析：' + escapeAttribute(item.explanation || '') + '</div>' : '') +
+                '</div>';
+            }).join('');
+            
+            quizModalResult.innerHTML = scoreHtml + detailsHtml;
+            if (quizModalBody) {
+                const quizForm = quizModalBody.querySelector('.study-quiz-form');
+                if (quizForm) {
+                    quizForm.style.display = 'none';
+                }
+            }
+            if (submitModalQuizBtn) submitModalQuizBtn.classList.add('hidden');
+            if (closeModalBtn) closeModalBtn.classList.remove('hidden');
+            quizModalResult.scrollIntoView({ behavior: 'smooth' });
+        }).catch(function(error){
+            if (submitBtn) submitBtn.disabled = false;
+            if (submitModalQuizBtn) submitModalQuizBtn.disabled = false;
+            quizStatus.textContent = error.message || '评分失败';
+        });
+    }
+    
+    // 对话框内的提交按钮
+    if (submitModalQuizBtn) {
+        console.log('[QUIZ DEBUG] submitModalQuizBtn found, binding click event');
+        submitModalQuizBtn.addEventListener('click', function(){
+            console.log('[QUIZ DEBUG] submitModalQuizBtn clicked');
+            submitQuiz();
+        });
+    } else {
+        console.error('[QUIZ DEBUG] submitModalQuizBtn not found!');
+    }
+
+    // 旧的提交按钮点击事件
+    if (submitBtn) {
+        submitBtn.addEventListener('click', function(){
+            submitQuiz();
+        });
+    }
+
+    if (generateBtn) {
+        generateBtn.addEventListener('click', function(){
+            console.log('[QUIZ DEBUG] Generate button clicked');
+            let count = parseInt(countSelect.value) || 5;
+            let questionType = typeSelect ? typeSelect.value : 'mixed';
+            console.log('[QUIZ DEBUG] Count:', count, 'Type:', questionType);
+            if (count < 3) {
+                count = 3;
+                countSelect.value = 3;
+                quizStatus.textContent = '题目数量最少3题，已自动调整。';
+                return;
+            }
+            if (count > 20) {
+                count = 20;
+                countSelect.value = 20;
+                quizStatus.textContent = '题目数量最多20题，已自动调整。';
+                return;
+            }
+            console.log('[QUIZ DEBUG] Calling window.requestQuiz with count:', count, 'type:', questionType);
+            console.log('[QUIZ DEBUG] window.requestQuiz exists:', typeof window.requestQuiz === 'function');
+            window.requestQuiz({count: count, question_type: questionType}, '正在生成练习题...', '练习题已生成');
+        });
+    }
+
+    window.renderQuiz = renderQuiz;
+    window.askCourseAi = function(prompt, page) {
+        if (window.__openCourseAiPanel) {
+            window.__openCourseAiPanel({ focusInput: true });
+        }
+        if (window.__setStudyMode) {
+            window.__setStudyMode('asking');
+        }
+        if (aiInput) {
+            aiInput.value = prompt;
+            if (aiSendButton) {
+                setTimeout(function(){
+                    aiSendButton.click();
+                }, 300);
+            }
+        }
+        if (page && !isNaN(page) && window.setViewerPage) {
+            window.setViewerPage(parseInt(page));
+        }
+    };
+
+    // 错题「解释这道题」：onclick 只传题号，这里查表取出提示词交给助教
+    window.__askWrongExplain = function(i){
+        const p = (window.__wrongExplainPrompts || [])[i];
+        if (p) window.askCourseAi(p);
+    };
+})();
+</script>
+{% endif %}
+{% endblock %}

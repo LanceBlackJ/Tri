@@ -1,0 +1,298 @@
+/* site.css — 全站视觉系统（clean / professional refresh）
+   设计目标：像一个正常的产品网站，而不是"一看就是 AI 做的"：
+   - 小圆角(6px)、不用药丸形；实心白底、不用玻璃拟态/渐变；细边线做主、阴影极克制；
+   - 去掉浮动/发光/悬浮抬升等装饰性动效。 */
+:root {
+  /* 紧凑高效后台风：深文字 + 明显边框 + 浅灰页底让白卡片浮出来 + 小圆角 */
+  --app-ink: #1f2328;
+  --app-muted: #55606b;   /* 加深，避免次要文字在浅底上和背景糊在一起 */
+  --app-line: #d0d7de;          /* 明显可见的边框，不再是若有若无的浅线 */
+  --app-line-strong: #afb8c1;
+  --app-surface: #ffffff;
+  --app-bg: #f6f8fa;            /* 浅灰页底，白卡片才有边界感 */
+  --app-teal: #12568a;
+  --app-teal-strong: #0e4470;
+  --app-cyan: #12568a;
+  --app-amber: #0e4470;
+  --app-shadow: none;          /* 边框做分隔，不靠阴影 */
+  --app-radius: 5px;
+  --app-radius-sm: 3px;
+}
+
+.brand-logo {
+  color: var(--app-teal);
+  letter-spacing: -0.01em;
+}
+
+/* 卡片：细边线 + 极淡阴影，不做悬浮抬升 */
+.card {
+  border-radius: var(--app-radius);
+  border: 1px solid var(--app-line);
+  background: var(--app-surface);
+  box-shadow: var(--app-shadow);
+  transition: border-color .15s ease, box-shadow .15s ease;
+}
+
+.card:hover {
+  border-color: var(--app-line-strong);
+}
+
+/* 按钮：矩形小圆角、边界分明、紧凑 */
+.btn-primary {
+  background: var(--app-teal);
+  color: #fff;
+  padding: .4rem .85rem;
+  border-radius: var(--app-radius);
+  font-weight: 600;
+  border: 1px solid rgba(0, 0, 0, 0.14);
+  transition: background .14s ease;
+}
+
+.btn-primary:hover {
+  background: var(--app-teal-strong);
+}
+
+.btn-secondary {
+  background: #fff;
+  color: var(--app-ink);
+  border: 1px solid var(--app-line-strong);
+  padding: .4rem .85rem;
+  border-radius: var(--app-radius);
+  font-weight: 600;
+  transition: background .14s ease, border-color .14s ease;
+}
+
+.btn-secondary:hover {
+  background: #f3f4f6;
+  border-color: #8c959f;
+}
+
+input:focus,
+textarea:focus,
+select:focus {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(18, 86, 138, 0.15);
+  border-color: var(--app-teal);
+}
+
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: none; }
+}
+
+.animate-fadeInUp {
+  animation: fadeInUp .3s ease both;
+}
+
+.status-pre {
+  background: #f9fafb;
+  border: 1px solid var(--app-line);
+  padding: 12px;
+  border-radius: var(--app-radius);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, 'Roboto Mono', 'Noto Sans Mono', monospace;
+  font-size: 13px;
+  color: #0f172a;
+}
+
+/* 标签：矩形小圆角 */
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: .4rem;
+  padding: .25rem .55rem;
+  border-radius: var(--app-radius-sm);
+  border: 1px solid var(--app-line);
+  background: #f9fafb;
+  color: #374151;
+  font-size: .8rem;
+  font-weight: 500;
+}
+
+/* Hero：去掉径向渐变，改成干净的浅底 + 底边线 */
+.hero {
+  background: #fff;
+  border-bottom: 1px solid var(--app-line);
+  padding: 2.5rem 0;
+}
+
+.hero .hero-card {
+  background: #fff;
+  border-radius: var(--app-radius);
+  border: 1px solid var(--app-line);
+  padding: 1.75rem;
+  box-shadow: var(--app-shadow);
+}
+
+.feature-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 1rem;
+}
+
+.feature {
+  padding: 1.1rem;
+  border-radius: var(--app-radius);
+  border: 1px solid var(--app-line);
+  background: #fff;
+  display: flex;
+  gap: 0.9rem;
+  align-items: flex-start;
+}
+
+.feature .icon {
+  width: 42px;
+  height: 42px;
+  border-radius: var(--app-radius);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  color: #fff;
+}
+
+.feature .icon.indigo { background: #12568a; }
+.feature .icon.green { background: #3b82f6; }
+.feature .icon.orange { background: #12568a; }
+
+.steps {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+}
+
+.step {
+  flex: 1;
+  border: 1px solid var(--app-line);
+  background: #fff;
+  padding: 12px;
+  border-radius: var(--app-radius);
+  text-align: center;
+}
+
+/* 进度条：矮一点、方一点 */
+.progress-bar {
+  height: 8px;
+  background: #eceef1;
+  border-radius: var(--app-radius-sm);
+  overflow: hidden;
+}
+
+.progress-bar > i {
+  display: block;
+  height: 100%;
+  background: var(--app-teal);
+  width: 0%;
+  transition: width .5s ease;
+}
+
+/* 去掉浮动装饰动效 */
+.floaty { animation: none; }
+
+.cta-group a { margin-right: .5rem; }
+
+body.dark {
+  --app-ink: #e4edf8;
+  --app-muted: #9fb0c3;
+  --app-line: #2a3646;
+  --app-line-strong: #3a4a5e;
+  --app-surface: #0f1826;
+  --app-bg: #0a111e;
+}
+
+body.dark .card,
+body.dark .feature,
+body.dark .hero .hero-card,
+body.dark .step,
+body.dark .chip {
+  background: #0f1826;
+  color: var(--app-ink);
+  border-color: var(--app-line);
+}
+
+body.dark .status-pre { background: #0c1420; color: var(--app-ink); border-color: var(--app-line); }
+body.dark .chip { background: #131f30; }
+body.dark .btn-secondary { background: #131f30; color: var(--app-ink); }
+body.dark .hero { background: #0f1826; border-color: var(--app-line); }
+body.dark .progress-bar { background: #23303f; }
+
+/* ── 全站去 AI 化收敛层：把各页自定义的 -hero/-panel/-card/-toolbar 花哨视觉压平 ──
+   实心白底、无渐变、无伪元素装饰、小圆角、细边线、极淡阴影。 */
+:is(
+  [class$='-hero'],
+  [class$='-toolbar'],
+  [class$='-panel'],
+  [class$='-card'],
+  [class$='-stage']
+),
+.auth-side, .auth-card,
+.course-ai-chat, .course-ai-toolbar, .course-ai-panel, .course-ai-summary-card,
+.push-hero, .push-panel, .push-card, .push-material-card,
+.builder-hero, .builder-toolbar, .builder-chat-card, .builder-preview-card, .builder-summary-card,
+.detail-hero, .detail-toolbar, .detail-panel, .detail-upload-card, .detail-material-card,
+.growth-hero, .growth-toolbar, .growth-panel, .growth-focus-card, .growth-summary-card,
+.studio-hero, .studio-toolbar, .studio-panel, .studio-form-panel, .studio-course-card, .studio-summary-card,
+.learning-hero, .learning-panel, .learning-card, .learning-focus-card, .learning-route-card, .learning-course-card, .learning-summary-card,
+.dashboard-hero, .dashboard-toolbar, .dashboard-option-panel, .dashboard-focus-panel, .dashboard-metric-card {
+  background: var(--app-surface) !important;
+  background-image: none !important;
+  color: var(--app-ink) !important;
+  border: 1px solid var(--app-line) !important;
+  border-radius: var(--app-radius) !important;
+  box-shadow: var(--app-shadow) !important;
+}
+
+:is(
+  [class$='-hero'],
+  [class$='-toolbar'],
+  [class$='-panel'],
+  [class$='-card'],
+  [class$='-stage']
+)::before,
+:is(
+  [class$='-hero'],
+  [class$='-toolbar'],
+  [class$='-panel'],
+  [class$='-card'],
+  [class$='-stage']
+)::after {
+  opacity: 0 !important;
+  display: none !important;
+}
+
+:is(
+  [class$='-hero'] h1, [class$='-hero'] h2, [class$='-hero'] h3,
+  [class$='-toolbar'] h1, [class$='-toolbar'] h2, [class$='-toolbar'] h3,
+  [class$='-panel'] h1, [class$='-panel'] h2, [class$='-panel'] h3,
+  [class$='-card'] h1, [class$='-card'] h2, [class$='-card'] h3,
+  .auth-side h1, .auth-side p, .auth-side span,
+  .auth-card h1, .auth-card h2, .auth-card p
+) {
+  color: var(--app-ink) !important;
+}
+
+:is(
+  [class$='-hero'] p, [class$='-toolbar'] p, [class$='-panel'] p, [class$='-card'] p,
+  .auth-side p, .auth-card p
+) {
+  color: var(--app-muted) !important;
+}
+
+:is(
+  [class$='-hero'] a, [class$='-toolbar'] a, [class$='-panel'] a, [class$='-card'] a
+) {
+  color: var(--app-teal);
+}
+
+/* 药丸按钮统一收敛成矩形小圆角（各页里大量 rounded-full / 9999px 的按钮） */
+button.rounded-full:not(.user-avatar):not(.theme-toggle),
+a.rounded-full.btn-primary,
+a.rounded-full.btn-secondary {
+  border-radius: var(--app-radius) !important;
+}
+
+@media (max-width: 640px) {
+  .max-w-7xl { padding-left: 1rem; padding-right: 1rem; }
+  .hero { padding: 1.8rem 0; }
+  .hero .hero-card { padding: 1.2rem; }
+  .steps { flex-direction: column; }
+}

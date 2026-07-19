@@ -1,0 +1,301 @@
+{% extends 'base.html' %}
+
+{% block title %}Tri - 个性化学习平台{% endblock %}
+
+{% block extra_css %}
+<style>
+    .landing-shell {
+        display: grid;
+        gap: 1.2rem;
+    }
+
+    .landing-hero {
+        position: relative;
+        overflow: hidden;
+        border-radius: 32px;
+        border: 1px solid rgba(71, 85, 105, 0.16);
+        background:
+            radial-gradient(780px 300px at 10% 10%, rgba(18, 86, 138, 0.2), transparent 35%),
+            radial-gradient(720px 280px at 100% 90%, rgba(14, 68, 112, 0.18), transparent 34%),
+            linear-gradient(135deg, #08242a 0%, #0f3c45 44%, #445534 100%);
+        box-shadow: 0 24px 56px rgba(15, 23, 42, 0.18);
+        color: #f8fafc;
+        padding: 2rem;
+    }
+
+    .landing-hero-grid {
+        position: relative;
+        z-index: 1;
+        display: grid;
+        grid-template-columns: minmax(0, 1.3fr) minmax(300px, 0.9fr);
+        gap: 1.2rem;
+        align-items: stretch;
+    }
+
+    .landing-kicker {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.45rem;
+        padding: 0.35rem 0.76rem;
+        border-radius: 999px;
+        border: 1px solid rgba(255, 255, 255, 0.22);
+        background: rgba(255, 255, 255, 0.08);
+        font-size: 0.72rem;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+    }
+
+    .landing-title {
+        margin-top: 1rem;
+        font-size: clamp(1.7rem, 3.5vw, 2.8rem);
+        line-height: 1.12;
+        font-weight: 800;
+        letter-spacing: -0.04em;
+    }
+
+    .landing-subtitle {
+        margin-top: 0.65rem;
+        max-width: 44rem;
+        color: rgba(248, 250, 252, 0.84);
+        font-size: 0.9rem;
+        line-height: 1.7;
+    }
+
+    .landing-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.7rem;
+        margin-top: 1.2rem;
+    }
+
+    .landing-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.45rem;
+        padding: 0.74rem 1.08rem;
+        border-radius: 999px;
+        font-size: 0.82rem;
+        font-weight: 700;
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .landing-btn:hover {
+        transform: translateY(-1px);
+    }
+
+    .landing-btn.primary {
+        background: #f8fafc;
+        color: #0f172a;
+        box-shadow: 0 14px 28px rgba(15, 23, 42, 0.2);
+    }
+
+    .landing-btn.ghost {
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        background: rgba(255, 255, 255, 0.08);
+        color: #f8fafc;
+    }
+
+    .landing-step-grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 0.68rem;
+        margin-top: 1.1rem;
+    }
+
+    .landing-step {
+        border-radius: 14px;
+        border: 1px solid rgba(255, 255, 255, 0.16);
+        background: rgba(255, 255, 255, 0.08);
+        padding: 0.64rem 0.72rem;
+    }
+
+    .landing-step strong {
+        display: block;
+        font-size: 0.84rem;
+        font-weight: 800;
+    }
+
+    .landing-step span {
+        display: block;
+        margin-top: 0.15rem;
+        font-size: 0.74rem;
+        color: rgba(248, 250, 252, 0.82);
+    }
+
+    .landing-rail {
+        border-radius: 22px;
+        border: 1px solid rgba(255, 255, 255, 0.16);
+        background: rgba(7, 16, 20, 0.38);
+        backdrop-filter: blur(10px);
+        padding: 1rem;
+        display: grid;
+        gap: 0.72rem;
+        align-content: start;
+    }
+
+    .landing-rail-item {
+        border-radius: 14px;
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        background: rgba(255, 255, 255, 0.05);
+        padding: 0.7rem;
+    }
+
+    .landing-rail-item .k {
+        font-size: 0.72rem;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: rgba(248, 250, 252, 0.72);
+    }
+
+    .landing-rail-item .v {
+        margin-top: 0.28rem;
+        font-size: 1.15rem;
+        font-weight: 800;
+        letter-spacing: -0.03em;
+    }
+
+    .landing-rail-item .d {
+        margin-top: 0.2rem;
+        font-size: 0.75rem;
+        color: rgba(248, 250, 252, 0.78);
+        line-height: 1.45;
+    }
+
+    .landing-feature-grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 1rem;
+    }
+
+    .landing-feature-card {
+        border-radius: 22px;
+        border: 1px solid rgba(71, 85, 105, 0.18);
+        background: linear-gradient(180deg, rgba(255, 255, 255, 0.92), rgba(250, 247, 241, 0.92));
+        padding: 1.1rem;
+        box-shadow: 0 14px 28px rgba(15, 23, 42, 0.06);
+    }
+
+    .landing-feature-icon {
+        width: 2.45rem;
+        height: 2.45rem;
+        border-radius: 12px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        color: #fff;
+        font-size: 0.95rem;
+        margin-bottom: 0.7rem;
+        background: linear-gradient(130deg, #12568a, #0891b2);
+    }
+
+    .landing-feature-card:nth-child(2) .landing-feature-icon {
+        background: linear-gradient(130deg, #12568a, #12568a);
+    }
+
+    .landing-feature-card:nth-child(3) .landing-feature-icon {
+        background: linear-gradient(130deg, #0e4470, #12568a);
+    }
+
+    .landing-feature-card h3 {
+        font-size: 0.95rem;
+        font-weight: 800;
+        color: #0f172a;
+        letter-spacing: -0.02em;
+    }
+
+    .landing-feature-card p {
+        margin-top: 0.35rem;
+        font-size: 0.78rem;
+        line-height: 1.55;
+        color: #5a6878;
+    }
+
+    @media (max-width: 1080px) {
+        .landing-hero-grid,
+        .landing-feature-grid,
+        .landing-step-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    @media (max-width: 640px) {
+        .landing-hero {
+            border-radius: 22px;
+            padding: 1.1rem;
+        }
+
+        .landing-title {
+            font-size: 1.7rem;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="landing-shell">
+    <section class="landing-hero">
+        <div class="landing-hero-grid">
+            <div>
+                <span class="landing-kicker"><i class="fas fa-sparkles"></i> Intelligent Learning Platform</span>
+                <h1 class="landing-title">把课程、练习、辅导放进同一条学习主线里。</h1>
+                <p class="landing-subtitle">从学习画像开始，自动生成课程和练习，再通过 AI 对话不断迭代你的学习路径。不是“找功能”，而是“沿着路径推进”。</p>
+                <div class="landing-actions">
+                    <a href="{% url 'register' %}" class="landing-btn primary"><i class="fas fa-rocket"></i> 免费开始</a>
+                    <a href="{% url 'login' %}" class="landing-btn ghost"><i class="fas fa-right-to-bracket"></i> 已有账号，立即登录</a>
+                </div>
+                <div class="landing-step-grid">
+                    <div class="landing-step">
+                        <strong>01 创建画像</strong>
+                        <span>快速定位你目前的学习阶段</span>
+                    </div>
+                    <div class="landing-step">
+                        <strong>02 AI 生成课程</strong>
+                        <span>自动给出资料、大纲与练习</span>
+                    </div>
+                    <div class="landing-step">
+                        <strong>03 进入学习循环</strong>
+                        <span>学习、测验、补弱持续闭环</span>
+                    </div>
+                </div>
+            </div>
+
+            <aside class="landing-rail">
+                <div class="landing-rail-item">
+                    <div class="k">学习路径</div>
+                    <div class="v">画像 -> 课程 -> 练习</div>
+                    <div class="d">一个界面串起全流程，不再在多个页面之间跳转。</div>
+                </div>
+                <div class="landing-rail-item">
+                    <div class="k">AI 协作</div>
+                    <div class="v">实时答疑与规划</div>
+                    <div class="d">支持上下文记忆，给出下一步学习建议。</div>
+                </div>
+                <div class="landing-rail-item">
+                    <div class="k">训练反馈</div>
+                    <div class="v">按薄弱点回看</div>
+                    <div class="d">自动标记高频错题知识点，优先安排回顾。</div>
+                </div>
+            </aside>
+        </div>
+    </section>
+
+    <section class="landing-feature-grid">
+        <article class="landing-feature-card">
+            <span class="landing-feature-icon"><i class="fas fa-brain"></i></span>
+            <h3>动态学习画像</h3>
+            <p>系统从学习行为与问答表现中自动更新你的能力画像，让推荐内容更贴近当前状态。</p>
+        </article>
+        <article class="landing-feature-card">
+            <span class="landing-feature-icon"><i class="fas fa-chalkboard"></i></span>
+            <h3>课程自动搭建</h3>
+            <p>一键生成课程大纲、讲解页和训练题，让“建课”和“学课”使用同一套智能引擎。</p>
+        </article>
+        <article class="landing-feature-card">
+            <span class="landing-feature-icon"><i class="fas fa-chart-line"></i></span>
+            <h3>学习评估闭环</h3>
+            <p>基于练习数据识别薄弱点，自动调整学习路径优先级，让学习更有针对性。</p>
+        </article>
+    </section>
+</div>
+{% endblock %}

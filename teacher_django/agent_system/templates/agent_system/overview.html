@@ -1,0 +1,14 @@
+{% extends 'base.html' %}
+{% block content %}
+<h1>智能体系统概览</h1>
+<ul>
+  <li>学生画像数: {{ counts.profiles }}</li>
+  <li>学习资源数: {{ counts.resources }}</li>
+  <li>任务数: {{ counts.tasks }}</li>
+</ul>
+<h3>API 示例</h3>
+<ul>
+  <li>构建画像: POST <code>/agent/api/profile/build/</code> JSON: {"text":"...","user_id":1}</li>
+  <li>创建任务: POST <code>/agent/api/task/create/</code> JSON: {"name":"任务名","user_id":1}</li>
+</ul>
+{% endblock %}

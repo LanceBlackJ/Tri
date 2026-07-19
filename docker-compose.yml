@@ -1,0 +1,91 @@
+# 四个服务：db(MySQL 8) + redis(Celery broker) + web(Django + gunicorn) + worker(Celery worker)。
+# 对外只暴露 web 的 6066 端口。用法见 DOCKER_DEPLOY.md。
+# 变量从 .env.docker 读取（复制 .env.docker.example 填写）。
+
+services:
+  db:
+    image: mysql:8.0
+    container_name: teacher_db
+    # 从根上避开 caching_sha2 认证坑；服务器字符集统一 utf8mb4（中文/emoji）
+    command:
+      - --default-authentication-plugin=mysql_native_password
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+    env_file:
+      - .env.docker
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      # $$ 转义：让容器内 shell 展开 MYSQL_ROOT_PASSWORD，而非被 compose 提前替换
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p$$MYSQL_ROOT_PASSWORD --silent"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    container_name: teacher_redis
+    # Celery broker + result backend；纯内网使用，不对外暴露端口
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    restart: unless-stopped
+
+  web:
+    build:
+      context: ./teacher_django
+    container_name: teacher_web
+    env_file:
+      - .env.docker
+    environment:
+      # 覆盖：容器内走 compose 内网，用服务名连数据库/broker
+      DB_HOST: db
+      DB_PORT: "3306"
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/1
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      # 用户上传的课程资料持久化（镜像重建不丢）
+      - media_data:/app/media
+    ports:
+      # 宿主机 6066 -> 容器 8000（6066 不在浏览器禁用端口列表里）
+      - "6066:8000"
+    restart: unless-stopped
+
+  worker:
+    build:
+      context: ./teacher_django
+    container_name: teacher_worker
+    env_file:
+      - .env.docker
+    environment:
+      DB_HOST: db
+      DB_PORT: "3306"
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/1
+      # entrypoint.sh 靠这个变量分流：worker 角色跳过 migrate/collectstatic，
+      # 直接起 Celery worker（migrate 交给 web 服务负责，避免两边同时抢着 migrate）
+      SERVICE_ROLE: worker
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      # 资料解析需要读到同一份用户上传文件
+      - media_data:/app/media
+    restart: unless-stopped
+
+volumes:
+  mysql_data:
+  redis_data:
+  media_data:

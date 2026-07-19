@@ -1,0 +1,4 @@
+# Shell 脚本强制 LF 换行：在 Windows 上提交、Linux 容器里执行也不会因 CRLF 而
+# 报 "/bin/sh^M: bad interpreter"。
+*.sh text eol=lf
+docker/entrypoint.sh text eol=lf

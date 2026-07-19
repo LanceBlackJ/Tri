@@ -1,0 +1,885 @@
+{% extends 'base.html' %}
+{% load profile_extras %}
+
+{% block title %}学习画像 - Tri{% endblock %}
+{% block page_title %}个人画像{% endblock %}
+{% block page_description %}你的学习画像{% endblock %}
+
+{% block extra_css %}
+<style>
+    :root {
+        --primary-color: #12568a;
+        --primary-light: #12568a;
+        --primary-dark: #0e4470;
+        --secondary-color: #3b82f6;
+        --accent-color: #3b82f6;
+        --bg-gradient: linear-gradient(135deg, #12568a 0%, #12568a 100%);
+    }
+
+    .profile-container {
+        padding-bottom: 1rem;
+    }
+
+    .profile-card {
+        background: white;
+        border-radius: 24px;
+        box-shadow: 0 4px 24px rgba(0, 0, 0, 0.08);
+        overflow: hidden;
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+    }
+
+    .profile-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
+    }
+
+    .profile-header {
+        background: linear-gradient(135deg, #0f172a 0%, #1e293b 55%, #0f172a 100%);
+        padding: 2.5rem 2rem;
+        color: white;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .profile-header::before {
+        content: '';
+        position: absolute;
+        top: -50%;
+        right: -20%;
+        width: 200px;
+        height: 200px;
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 50%;
+    }
+
+    .profile-header::after {
+        content: '';
+        position: absolute;
+        bottom: -30%;
+        left: -10%;
+        width: 150px;
+        height: 150px;
+        background: rgba(255, 255, 255, 0.08);
+        border-radius: 50%;
+    }
+
+    .avatar-wrapper {
+        position: relative;
+        z-index: 1;
+        margin-bottom: 1.5rem;
+    }
+
+    .avatar {
+        width: 96px;
+        height: 96px;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.2);
+        backdrop-filter: blur(10px);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 2.5rem;
+        font-weight: 700;
+        border: 3px solid rgba(255, 255, 255, 0.3);
+    }
+
+    .profile-name {
+        position: relative;
+        z-index: 1;
+        font-size: 1.75rem;
+        font-weight: 700;
+        margin-bottom: 0.5rem;
+    }
+
+    .profile-subtitle {
+        position: relative;
+        z-index: 1;
+        font-size: 0.9rem;
+        opacity: 0.9;
+    }
+
+    .stat-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 1rem;
+        margin-top: 1.5rem;
+    }
+
+    .stat-item {
+        background: rgba(255, 255, 255, 0.15);
+        backdrop-filter: blur(10px);
+        border-radius: 16px;
+        padding: 1rem;
+        text-align: center;
+    }
+
+    .stat-value {
+        font-size: 1.5rem;
+        font-weight: 700;
+        display: block;
+    }
+
+    .stat-label {
+        font-size: 0.75rem;
+        opacity: 0.85;
+        margin-top: 0.25rem;
+    }
+
+    .section-title {
+        font-size: 1.125rem;
+        font-weight: 600;
+        color: #1f2937;
+        margin-bottom: 1rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .section-title::before {
+        content: '';
+        width: 4px;
+        height: 16px;
+        background: var(--primary-color);
+        border-radius: 2px;
+    }
+
+    .info-grid {
+        display: grid;
+        /* 多列自适应：卡片平铺成 2-3 列，避免整页一长条 */
+        grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+        align-items: start;
+        gap: 1.1rem;
+        padding: 1.5rem;
+    }
+    /* 雷达图与成长报告内容多，跨 2 列更好看 */
+    .info-card.span-2 { grid-column: span 2; }
+    @media (max-width: 720px) {
+        .info-grid { grid-template-columns: 1fr; }
+        .info-card.span-2 { grid-column: auto; }
+    }
+
+    .info-card {
+        background: #f9fafb;
+        border-radius: 16px;
+        padding: 1.25rem;
+        border: 1px solid #e5e7eb;
+    }
+
+    .info-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 0.75rem 0;
+        border-bottom: 1px solid #e5e7eb;
+    }
+
+    .info-row:last-child {
+        border-bottom: none;
+    }
+
+    .info-label {
+        font-size: 0.875rem;
+        color: #6b7280;
+    }
+
+    .info-value {
+        font-size: 0.875rem;
+        font-weight: 600;
+        color: #1f2937;
+    }
+
+    .progress-bar {
+        height: 8px;
+        background: #e5e7eb;
+        border-radius: 4px;
+        overflow: hidden;
+        margin-top: 0.5rem;
+    }
+
+    .progress-fill {
+        height: 100%;
+        background: var(--bg-gradient);
+        border-radius: 4px;
+        transition: width 0.5s ease;
+    }
+
+    .tag-list {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+        margin-top: 0.75rem;
+    }
+
+    .tag {
+        background: var(--primary-color);
+        color: white;
+        padding: 0.375rem 0.75rem;
+        border-radius: 20px;
+        font-size: 0.75rem;
+        font-weight: 500;
+    }
+
+    .tag-secondary {
+        background: #f3f4f6;
+        color: #4b5563;
+    }
+
+    .tag-success {
+        background: #dbeafe;
+        color: #0c3a5f;
+    }
+
+    .tag-warning {
+        background: #e8f1fb;
+        color: #92400e;
+    }
+
+    .tag-danger {
+        background: #fee2e2;
+        color: #991b1b;
+    }
+
+    .action-buttons {
+        display: flex;
+        gap: 1rem;
+        margin-top: 2rem;
+    }
+
+    .action-buttons .btn {
+        flex: 1;
+    }
+
+    .empty-state {
+        text-align: center;
+        padding: 3rem;
+    }
+
+    .empty-icon {
+        width: 80px;
+        height: 80px;
+        background: #f3f4f6;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto 1.5rem;
+        font-size: 2.5rem;
+    }
+
+    .empty-title {
+        font-size: 1.25rem;
+        font-weight: 600;
+        color: #1f2937;
+        margin-bottom: 0.5rem;
+    }
+
+    .empty-desc {
+        font-size: 0.875rem;
+        color: #6b7280;
+        margin-bottom: 1.5rem;
+    }
+
+    /* 知识点较多时卡片内部滚动，不再把整页撑长 */
+    .knowledge-scroll {
+        max-height: 260px;
+        overflow-y: auto;
+        padding-right: 6px;
+    }
+    .knowledge-scroll::-webkit-scrollbar { width: 6px; }
+    .knowledge-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 999px; }
+    .knowledge-scroll::-webkit-scrollbar-track { background: transparent; }
+
+    .knowledge-item {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 1rem;
+        background: #f9fafb;
+        border-radius: 12px;
+        margin-bottom: 0.75rem;
+    }
+
+    .knowledge-name {
+        font-size: 0.9rem;
+        font-weight: 500;
+        color: #1f2937;
+    }
+
+    .knowledge-score {
+        font-size: 0.875rem;
+        font-weight: 600;
+        color: var(--primary-color);
+    }
+
+    .goal-item {
+        padding: 1rem;
+        background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
+        border-radius: 12px;
+        margin-bottom: 0.75rem;
+        border-left: 4px solid var(--primary-color);
+    }
+
+    .goal-text {
+        font-size: 0.875rem;
+        color: #1e40af;
+    }
+
+    .radar-chart-wrapper {
+        position: relative;
+        max-width: 460px;
+        margin: 0 auto;
+    }
+    .radar-chart-wrapper svg { width: 100%; height: auto; display: block; }
+    .radar-poly-data { transform-origin: center; }
+    @media (prefers-reduced-motion: no-preference) {
+        .radar-poly-data { animation: radarGrow 0.8s cubic-bezier(0.22, 1, 0.36, 1) both; }
+        @keyframes radarGrow { from { transform: scale(0.15); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+    }
+
+    .growth-overlay-legend {
+        display: flex;
+        justify-content: center;
+        gap: 1.5rem;
+        margin-top: 0.75rem;
+        font-size: 0.8rem;
+        color: #6b7280;
+    }
+
+    .legend-swatch {
+        display: inline-block;
+        width: 14px;
+        height: 14px;
+        border-radius: 3px;
+        margin-right: 0.375rem;
+        vertical-align: middle;
+    }
+
+    .legend-swatch.is-current {
+        background: rgba(59, 130, 246, 0.7);
+    }
+
+    .legend-swatch.is-previous {
+        background: #cbd5e1;
+        border: 1px dashed #94a3b8;
+    }
+
+    .growth-stat-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 0.75rem;
+        margin-bottom: 1.5rem;
+    }
+
+    @media (min-width: 640px) {
+        .growth-stat-grid {
+            grid-template-columns: repeat(3, 1fr);
+        }
+    }
+
+    .growth-stat-item {
+        background: white;
+        border: 1px solid #e5e7eb;
+        border-radius: 12px;
+        padding: 0.75rem 1rem;
+    }
+
+    .growth-stat-label {
+        font-size: 0.75rem;
+        color: #6b7280;
+        margin-bottom: 0.25rem;
+    }
+
+    .growth-stat-value {
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;          /* 空间不够时徽章换行，绝不溢出被截断 */
+        gap: 0.35rem 0.5rem;
+        font-size: 1.35rem;
+        font-weight: 800;
+        color: #1f2937;
+    }
+
+    .growth-delta-badge {
+        font-size: 0.72rem;
+        font-weight: 700;
+        padding: 0.15rem 0.5rem;
+        border-radius: 9999px;
+        white-space: nowrap;      /* 徽章内部 "▲ +53" 不拆开 */
+    }
+
+    .growth-delta-up {
+        background: #dbeafe;
+        color: #0c3a5f;
+    }
+
+    .growth-delta-down {
+        background: #fee2e2;
+        color: #991b1b;
+    }
+
+    .growth-delta-flat {
+        background: #f3f4f6;
+        color: #6b7280;
+    }
+
+    .growth-trend-wrapper {
+        position: relative;
+        height: 280px;
+        margin-bottom: 1.5rem;
+    }
+
+    .growth-narrative-box {
+        padding: 1rem;
+        background: linear-gradient(135deg, #e8f1fb 0%, #e0e7ff 100%);
+        border-radius: 12px;
+        border-left: 4px solid var(--primary-color);
+    }
+
+    .growth-narrative-title {
+        font-size: 0.8rem;
+        font-weight: 600;
+        color: var(--primary-dark);
+        margin-bottom: 0.375rem;
+    }
+
+    .growth-empty-note {
+        font-size: 0.875rem;
+        color: #6b7280;
+        text-align: center;
+        padding: 1rem 0;
+    }
+
+    @media (max-width: 768px) {
+        .stat-grid {
+            grid-template-columns: 1fr;
+        }
+        
+        .info-grid {
+            padding: 1.5rem;
+        }
+        
+        .action-buttons {
+            flex-direction: column;
+        }
+    }
+
+    /* ── 本页用到的 Tailwind 工具类本地兜底 ──
+       站点 Tailwind 走 CDN（cdn.tailwindcss.com），国内可能加载失败，
+       导致这些类失效 → 文字丢色、布局塌陷。这里补上本地定义，
+       无论 CDN 是否加载都能正确显示。 */
+    .info-grid .container, .container { width: 100%; }
+    .max-w-4xl { max-width: 56rem; }
+    .mx-auto { margin-left: auto; margin-right: auto; }
+    .px-4 { padding-left: 1rem; padding-right: 1rem; }
+    .px-6 { padding-left: 1.5rem; padding-right: 1.5rem; }
+    .pb-6 { padding-bottom: 1.5rem; }
+    .mb-3 { margin-bottom: 0.75rem; }
+    .mb-4 { margin-bottom: 1rem; }
+    .mt-1 { margin-top: 0.25rem; }
+    .flex { display: flex; }
+    .justify-between { justify-content: space-between; }
+    .text-xs { font-size: 0.82rem; line-height: 1.55; }
+    .text-sm { font-size: 0.95rem; line-height: 1.55; }
+    .font-medium { font-weight: 600; }
+    .text-gray-400 { color: #9ca3af; }
+    .text-gray-500 { color: #6b7280; }
+    .text-gray-600 { color: #4b5563; }
+    .text-gray-800 { color: #1f2937; }
+    .text-gray-900 { color: #111827; }
+
+    /* ── 修复 site.css 的 [class$='-card'] 全局规则误伤 ──
+       该规则把 -card 内的 h1/p/a 一律强制成深色（!important），
+       但本页 header 是深底、主按钮是深底，导致用户名/副标题/按钮文字
+       与背景同色、看不见。这里针对性改回可见颜色（更高特异性 + !important）。 */
+    .profile-header .profile-name,
+    .profile-header .profile-subtitle { color: #ffffff !important; }
+    .action-buttons .btn-primary { color: #ffffff !important; }
+    .action-buttons .btn-secondary { color: var(--primary-color) !important; }
+
+    /* ── 更宽、更紧凑（原来窄且长）── */
+    .profile-container .max-w-4xl { max-width: 1180px; }
+    .profile-header { padding: 1.35rem 1.75rem; }
+    .avatar { width: 58px; height: 58px; font-size: 1.5rem; border-width: 2px; overflow: hidden; padding: 0; }
+    .avatar-img { width: 100%; height: 100%; object-fit: cover; border-radius: 50%; display: block; }
+    .profile-name { font-size: 1.5rem; margin-bottom: 0.15rem; }
+    .profile-subtitle { font-size: 0.95rem; }
+    .profile-header .stat-grid { margin-top: 1rem; }
+
+    /* ── 文字整体调大一档，更易读 ── */
+    .info-card .section-title { font-size: 1.2rem; }
+    .info-card .info-label, .info-card .info-value { font-size: 0.98rem; }
+    .info-card .knowledge-name, .info-card .knowledge-score { font-size: 0.98rem; }
+    .profile-header .stat-label { font-size: 0.82rem; }
+    .profile-header .stat-value { font-size: 1.65rem; }
+    .info-card .tag { font-size: 0.85rem; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="profile-container">
+    <div class="container max-w-4xl mx-auto px-4">
+        <div class="profile-card">
+            <!-- 头部区域 -->
+            <div class="profile-header">
+                <div class="avatar-wrapper">
+                    <div class="avatar">
+                        {% if request.user.avatar %}
+                            <img src="{{ request.user.avatar.url }}" alt="{{ request.user.username }}" class="avatar-img">
+                        {% else %}
+                            {{ request.user.username|first|upper }}
+                        {% endif %}
+                    </div>
+                </div>
+                <h1 class="profile-name">{{ request.user.username }}</h1>
+                <p class="profile-subtitle">学习画像概览</p>
+                
+                <div class="stat-grid">
+                    <div class="stat-item">
+                        <span class="stat-value">{{ knowledge_items|length }}</span>
+                        <span class="stat-label">已掌握知识点</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-value">{{ engagement.score|default:0 }}</span>
+                        <span class="stat-label">参与度</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-value">{{ learning_goals_list|length }}</span>
+                        <span class="stat-label">学习目标</span>
+                    </div>
+                </div>
+            </div>
+
+            {% if has_profile %}
+            <!-- 画像内容区域 -->
+            <div class="info-grid">
+                <!-- 六维画像雷达图 -->
+                <div class="info-card">
+                    <h3 class="section-title">六维画像雷达图</h3>
+                    <div class="radar-chart-wrapper">
+                        <svg id="profileRadarChart" viewBox="0 0 460 380" role="img" aria-label="六维学习画像雷达图">
+                            <defs>
+                                <linearGradient id="radarFill" x1="0" y1="0" x2="1" y2="1">
+                                    <stop offset="0" stop-color="#1c6bb0" stop-opacity="0.32"/>
+                                    <stop offset="1" stop-color="#38bdf8" stop-opacity="0.20"/>
+                                </linearGradient>
+                                <linearGradient id="radarStroke" x1="0" y1="0" x2="1" y2="1">
+                                    <stop offset="0" stop-color="#0c3a5f"/>
+                                    <stop offset="1" stop-color="#1c6bb0"/>
+                                </linearGradient>
+                            </defs>
+                        </svg>
+                    </div>
+                    {% if has_growth_history %}
+                    <div class="growth-overlay-legend">
+                        <span><span class="legend-swatch is-current"></span>本次得分</span>
+                        <span><span class="legend-swatch is-previous"></span>上次得分</span>
+                    </div>
+                    {% endif %}
+                </div>
+
+                <!-- 学习成长报告 -->
+                <div class="info-card span-2">
+                    <h3 class="section-title">学习成长报告</h3>
+                    {% if has_growth_history %}
+                        <div class="growth-stat-grid">
+                            {% for delta in growth_deltas %}
+                            <div class="growth-stat-item">
+                                <div class="growth-stat-label">{{ delta.label }}</div>
+                                <div class="growth-stat-value">
+                                    <span>{{ delta.latest }}</span>
+                                    {% if delta.direction == 'up' %}
+                                        <span class="growth-delta-badge growth-delta-up">▲ +{{ delta.delta_abs }}</span>
+                                    {% elif delta.direction == 'down' %}
+                                        <span class="growth-delta-badge growth-delta-down">▼ -{{ delta.delta_abs }}</span>
+                                    {% else %}
+                                        <span class="growth-delta-badge growth-delta-flat">— {{ delta.delta_abs }}</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+
+                        <div class="growth-trend-wrapper">
+                            <canvas id="profileGrowthTrendChart"></canvas>
+                        </div>
+
+                        {% if growth_narrative %}
+                        <div class="growth-narrative-box">
+                            <div class="growth-narrative-title">AI 成长诊断</div>
+                            <p>{{ growth_narrative }}</p>
+                        </div>
+                        {% endif %}
+                    {% else %}
+                        <p class="growth-empty-note">
+                            {% if latest_snapshot_at %}首次记录于 {{ latest_snapshot_at|date:"Y年m月d日 H:i" }}，下次画像更新后即可看到成长趋势与AI诊断。{% else %}完成画像建立后即可看到成长趋势与AI诊断。{% endif %}
+                        </p>
+                    {% endif %}
+                </div>
+
+                <!-- 画像状态 -->
+                <div class="info-card">
+                    <h3 class="section-title">画像状态</h3>
+                    <div class="info-row">
+                        <span class="info-label">状态</span>
+                        <span class="info-value"><span class="tag tag-success">已建立</span></span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">上次更新</span>
+                        <span class="info-value">{{ profile.last_updated|date:"Y年m月d日 H:i" }}</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">认知风格</span>
+                        <span class="info-value">{{ current_profile_obj.cognitive_style|default:'未设定' }}</span>
+                    </div>
+                </div>
+
+                <!-- 学习偏好 -->
+                <div class="info-card">
+                    <h3 class="section-title">学习偏好</h3>
+                    {% if learning_preferences_items %}
+                        <div class="tag-list">
+                            {% for k, v in learning_preferences_items %}
+                                <span class="tag {% if v %}tag-success{% else %}tag-secondary{% endif %}">{{ k }}</span>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <p class="text-sm text-gray-500">暂无偏好数据</p>
+                    {% endif %}
+                </div>
+
+                <!-- 知识掌握 -->
+                <div class="info-card">
+                    <h3 class="section-title">知识掌握</h3>
+                    {% if knowledge_items %}
+                        <div class="knowledge-scroll">
+                        {% for k, v in knowledge_items %}
+                            <div class="knowledge-item">
+                                <span class="knowledge-name">{{ k }}</span>
+                                <span class="knowledge-score">{{ v }}</span>
+                            </div>
+                        {% endfor %}
+                        </div>
+                    {% else %}
+                        <p class="text-sm text-gray-500">暂无知识点数据</p>
+                    {% endif %}
+                </div>
+
+                <!-- 今日复习推荐 -->
+                <div class="info-card">
+                    <h3 class="section-title">今日复习推荐</h3>
+                    <p class="text-sm text-gray-500" style="margin-bottom: 0.75rem;">基于做题记录的遗忘曲线预测</p>
+                    {% if review_queue %}
+                        {% for item in review_queue %}
+                            <div class="knowledge-item">
+                                <span class="knowledge-name">{{ item.tag }}</span>
+                                {% if item.is_due %}
+                                    <span class="tag tag-danger">已到期</span>
+                                {% else %}
+                                    <span class="tag tag-warning">{{ item.days_until_due }}天后</span>
+                                {% endif %}
+                            </div>
+                        {% endfor %}
+                    {% else %}
+                        <p class="text-sm text-gray-500">暂无复习记录</p>
+                    {% endif %}
+                </div>
+
+                <!-- 学习目标 -->
+                <div class="info-card">
+                    <h3 class="section-title">学习目标</h3>
+                    {% if learning_goals_list %}
+                        {% for goal in learning_goals_list %}
+                            <div class="goal-item">
+                                <span class="goal-text">{{ goal }}</span>
+                            </div>
+                        {% endfor %}
+                    {% else %}
+                        <p class="text-sm text-gray-500">暂无学习目标</p>
+                    {% endif %}
+                </div>
+
+                <!-- 常见误解 -->
+                <div class="info-card">
+                    <h3 class="section-title">常见误解</h3>
+                    {% if misconceptions_list %}
+                        <div class="tag-list">
+                            {% for misconception in misconceptions_list %}
+                                <span class="tag tag-warning">{{ misconception }}</span>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <p class="text-sm text-gray-500">暂无误解记录</p>
+                    {% endif %}
+                </div>
+
+                <!-- 置信度 -->
+                <div class="info-card">
+                    <h3 class="section-title">画像置信度</h3>
+                    {% if confidence_items %}
+                        {% for dim, score in confidence_items %}
+                            <div class="mb-3">
+                                <div class="flex justify-between text-sm">
+                                    <span class="text-gray-600">{{ dim }}</span>
+                                    <span class="font-medium text-gray-900">{{ score|multiply:100|floatformat:0 }}%</span>
+                                </div>
+                                <div class="progress-bar">
+                                    <div class="progress-fill" style="width: {{ score|multiply:100|floatformat:0 }}%"></div>
+                                </div>
+                            </div>
+                        {% endfor %}
+                    {% else %}
+                        <p class="text-sm text-gray-500">暂无置信度数据</p>
+                    {% endif %}
+                </div>
+
+                <!-- 画像证据（OLM 可解释：每一维凭学生哪句话判定 + 证据强度置信度） -->
+                {% if dimension_evidence %}
+                <div class="info-card">
+                    <h3 class="section-title">画像证据 · 凭什么这么判</h3>
+                    <p class="text-xs text-gray-500 mb-3">每一维都锚定到你在对话里说过的原话；证据不足的维度会标注"待补充"，绝不臆测。</p>
+                    {% for d in dimension_evidence %}
+                        <div class="mb-4" style="border-left:3px solid {% if d.weak %}#d1d5db{% else %}#3b82f6{% endif %};padding-left:10px;">
+                            <div class="flex justify-between text-sm">
+                                <span class="font-medium text-gray-800">{{ d.label }}{% if d.weak %} <span class="text-gray-400 text-xs">· 待补充</span>{% endif %}</span>
+                                <span class="text-gray-500 text-xs">证据置信度 {{ d.confidence_pct }}%</span>
+                            </div>
+                            {% if d.fslsm %}
+                            <div class="text-xs text-gray-500 mt-1">
+                                认知风格(Felder-Silverman)：
+                                {% for a in d.fslsm %}<span style="display:inline-block;background:#e8f1fb;color:#0e4470;border-radius:6px;padding:1px 6px;margin:1px;">{{ a.pole }}</span>{% endfor %}
+                            </div>
+                            {% endif %}
+                            {% if d.evidence %}
+                                {% for e in d.evidence %}
+                                    <div class="text-xs text-gray-600 mt-1" style="background:#f9fafb;border-radius:6px;padding:4px 8px;">“{{ e }}”</div>
+                                {% endfor %}
+                            {% else %}
+                                <div class="text-xs text-gray-400 mt-1">（暂无对话证据，可在画像构建里补充）</div>
+                            {% endif %}
+                        </div>
+                    {% endfor %}
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- 操作按钮 -->
+            <div class="px-6 pb-6">
+                <div class="action-buttons">
+                    <a href="{% url 'profile_building' %}" class="btn btn-primary">编辑画像</a>
+                    <a href="{% url 'course_generator' %}" class="btn btn-secondary">生成课程</a>
+                </div>
+            </div>
+            {% else %}
+            <!-- 空状态 -->
+            <div class="empty-state">
+                <div class="empty-icon">👤</div>
+                <h3 class="empty-title">还没有学习画像</h3>
+                <p class="empty-desc">建立学习画像可以帮助我们更好地了解你的学习需求，为你提供个性化的学习建议。</p>
+                <a href="{% url 'profile_building' %}" class="btn btn-primary">立即构建画像</a>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+{% if has_profile %}
+{{ radar_chart_data|json_script:"radar-chart-data" }}
+{% if growth_trend %}{{ growth_trend|json_script:"growth-trend-data" }}{% endif %}
+<script>
+// 六维雷达图：纯 SVG 绘制（不依赖任何 CDN，国内可靠显示；替代原 Chart.js 版）。
+// 数据取自 radar_chart_data（labels + values，0-100），有 previous_values 则叠加上次得分。
+(function(){
+    var dataEl = document.getElementById('radar-chart-data');
+    var svg = document.getElementById('profileRadarChart');
+    if (!dataEl || !svg) return;
+    var d = JSON.parse(dataEl.textContent);
+    var labels = d.labels || [], values = d.values || [], prev = d.previous_values || null;
+    var N = labels.length;
+    if (!N) return;
+
+    var cx = 230, cy = 190, R = 118, NS = 'http://www.w3.org/2000/svg';
+    function ang(i){ return (-90 + i * 360 / N) * Math.PI / 180; }
+    function pt(i, r){ return [cx + r * Math.cos(ang(i)), cy + r * Math.sin(ang(i))]; }
+    function mk(tag, a){ var e = document.createElementNS(NS, tag); for (var k in a) e.setAttribute(k, a[k]); return e; }
+
+    // 网格环（5 层六边形）
+    [20, 40, 60, 80, 100].forEach(function(lv){
+        var pts = labels.map(function(_, i){ return pt(i, R * lv / 100).join(','); }).join(' ');
+        svg.appendChild(mk('polygon', { points: pts, fill: lv === 100 ? 'rgba(240,245,250,0.5)' : 'none', stroke: '#e4ebf2', 'stroke-width': 1 }));
+    });
+    // 轴线
+    labels.forEach(function(_, i){ var p = pt(i, R); svg.appendChild(mk('line', { x1: cx, y1: cy, x2: p[0], y2: p[1], stroke: '#d8e2ec', 'stroke-width': 1 })); });
+    // 上次得分（虚线）
+    if (prev && prev.length === N) {
+        var pp = prev.map(function(v, i){ return pt(i, R * v / 100).join(','); }).join(' ');
+        svg.appendChild(mk('polygon', { points: pp, fill: 'none', stroke: '#94a3b8', 'stroke-width': 1.5, 'stroke-dasharray': '4 4', 'stroke-linejoin': 'round' }));
+    }
+    // 本次数据多边形
+    var dp = values.map(function(v, i){ return pt(i, R * v / 100).join(','); }).join(' ');
+    svg.appendChild(mk('polygon', { 'class': 'radar-poly-data', points: dp, fill: 'url(#radarFill)', stroke: 'url(#radarStroke)', 'stroke-width': 2.5, 'stroke-linejoin': 'round' }));
+    // 数据点
+    values.forEach(function(v, i){ var p = pt(i, R * v / 100); svg.appendChild(mk('circle', { cx: p[0], cy: p[1], r: 4.5, fill: '#12568a', stroke: '#fff', 'stroke-width': 2 })); });
+    // 维度标签 + 分值
+    labels.forEach(function(lb, i){
+        var p = pt(i, R + 30), c = Math.cos(ang(i));
+        var anchor = Math.abs(c) < 0.25 ? 'middle' : (c > 0 ? 'start' : 'end');
+        var t1 = mk('text', { x: p[0], y: p[1], 'text-anchor': anchor, 'font-size': 13, 'font-weight': 700, fill: '#1f2937' });
+        t1.textContent = lb; svg.appendChild(t1);
+        var t2 = mk('text', { x: p[0], y: p[1] + 16, 'text-anchor': anchor, 'font-size': 12, 'font-weight': 800, fill: '#12568a' });
+        t2.textContent = Math.round(values[i]) + '分'; svg.appendChild(t2);
+    });
+})();
+</script>
+{% if growth_trend %}
+<script src="https://registry.npmmirror.com/chart.js/4.4.4/files/dist/chart.umd.js"></script>
+<script>
+(function(){
+    const dataEl = document.getElementById('growth-trend-data');
+    const canvas = document.getElementById('profileGrowthTrendChart');
+    if (!dataEl || !canvas || typeof Chart === 'undefined') return;
+
+    const trendData = JSON.parse(dataEl.textContent);
+    // 六维各用一个不同的颜色，避免多条线同色重合、分不清
+    const palette = [
+        '#2563eb', // 知识掌握 - 蓝
+        '#16a34a', // 学习参与度 - 绿
+        '#ea580c', // 学习目标 - 橙
+        '#9333ea', // 学习偏好 - 紫
+        '#0891b2', // 概念清晰度 - 青
+        '#db2777', // 画像置信度 - 玫红
+    ];
+
+    new Chart(canvas.getContext('2d'), {
+        type: 'line',
+        data: {
+            labels: trendData.dates,
+            datasets: trendData.series.map((s, i) => ({
+                label: s.label,
+                data: s.data,
+                borderColor: palette[i % palette.length],
+                backgroundColor: palette[i % palette.length],
+                borderWidth: 2.5,
+                pointRadius: 3,
+                pointHoverRadius: 5,
+                tension: 0.3,
+                fill: false,
+            })),
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: { min: 0, max: 100, ticks: { stepSize: 20 } }
+            },
+            plugins: {
+                legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 11 } } }
+            }
+        }
+    });
+})();
+</script>
+{% endif %}{# growth_trend #}
+{% endif %}{# has_profile #}
+{% endblock %}

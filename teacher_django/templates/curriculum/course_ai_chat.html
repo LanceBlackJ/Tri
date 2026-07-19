@@ -1,0 +1,769 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}课程 AI 助教{% endblock %}
+{% block page_title %}课程助教{% endblock %}
+{% block page_description %}就当前课程内容随时提问{% endblock %}
+
+{% block extra_css %}
+<style>
+@keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes slideInLeft { from { opacity: 0; transform: translateX(-15px); } to { opacity: 1; transform: translateX(0); } }
+
+.course-ai-container {
+    display: flex;
+    flex-direction: column;
+    min-height: calc(100vh - 6rem);
+    background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+}
+
+.course-ai-header-section {
+    padding: 1.5rem 2rem;
+    background: white;
+    border-bottom: 1px solid #e2e8f0;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+.course-ai-header-content {
+    max-width: 1400px;
+    margin: 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 2rem;
+}
+
+.course-ai-title-area {
+    display: flex;
+    align-items: center;
+    gap: 1.2rem;
+}
+
+.course-ai-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 14px;
+    background: linear-gradient(135deg, #12568a 0%, #3b82f6 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 1.3rem;
+    box-shadow: 0 4px 12px rgba(18, 86, 138, 0.25);
+}
+
+.course-ai-main-title {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: #0f172a;
+    margin: 0;
+}
+
+.course-ai-subtitle {
+    font-size: 0.85rem;
+    color: #64748b;
+    margin: 0.2rem 0 0;
+}
+
+.course-ai-header-actions {
+    display: flex;
+    gap: 0.8rem;
+}
+
+.course-ai-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.65rem 1.1rem;
+    border-radius: 10px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    transition: all 0.2s ease;
+    border: none;
+    cursor: pointer;
+}
+
+.course-ai-btn-primary {
+    background: linear-gradient(135deg, #12568a 0%, #3b82f6 100%);
+    color: white;
+    box-shadow: 0 2px 8px rgba(18, 86, 138, 0.2);
+}
+
+.course-ai-btn-primary:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(18, 86, 138, 0.3);
+}
+
+.course-ai-btn-secondary {
+    background: white;
+    color: #475569;
+    border: 1px solid #e2e8f0;
+}
+
+.course-ai-btn-secondary:hover {
+    background: #f8fafc;
+    border-color: #cbd5e1;
+}
+
+.course-ai-body {
+    flex: 1;
+    display: flex;
+    max-width: 1400px;
+    margin: 0 auto;
+    width: 100%;
+    padding: 1.5rem;
+    gap: 1.5rem;
+}
+
+.course-ai-sidebar {
+    width: 280px;
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.course-ai-sidebar-card {
+    background: white;
+    border-radius: 16px;
+    padding: 1.2rem;
+    border: 1px solid #e2e8f0;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);
+    animation: slideInLeft 0.3s ease both;
+}
+
+.course-ai-sidebar-card:nth-child(2) { animation-delay: 0.1s; }
+.course-ai-sidebar-card:nth-child(3) { animation-delay: 0.2s; }
+
+.course-ai-card-title {
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 0.8rem;
+}
+
+.course-ai-context-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.course-ai-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    padding: 0.4rem 0.7rem;
+    background: #f1f5f9;
+    border-radius: 20px;
+    font-size: 0.78rem;
+    color: #475569;
+    border: 1px solid #e2e8f0;
+}
+
+.course-ai-chip.active {
+    background: #dbeafe;
+    border-color: #3b82f6;
+    color: #0e4470;
+}
+
+.course-ai-chip i {
+    font-size: 0.72rem;
+}
+
+.course-ai-material-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+.course-ai-material-item {
+    display: flex;
+    align-items: center;
+    gap: 0.7rem;
+    padding: 0.6rem;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    border: 1px solid transparent;
+}
+
+.course-ai-material-item:hover {
+    background: #f8fafc;
+    border-color: #e2e8f0;
+}
+
+.course-ai-material-item.active {
+    background: #f0f6fc;
+    border-color: #bbf7d0;
+}
+
+.course-ai-material-icon {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.85rem;
+    flex-shrink: 0;
+}
+
+.course-ai-material-icon.pdf { background: #fef2f2; color: #dc2626; }
+.course-ai-material-icon.ppt { background: #e8f1fb; color: #12568a; }
+.course-ai-material-icon.doc { background: #dbeafe; color: #2563eb; }
+.course-ai-material-icon.video { background: #fce7f3; color: #3b82f6; }
+.course-ai-material-icon.image { background: #e0e7ff; color: #3b82f6; }
+
+.course-ai-material-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.course-ai-material-name {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: #334155;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.course-ai-material-status {
+    font-size: 0.72rem;
+    color: #94a3b8;
+    margin-top: 0.1rem;
+}
+
+.course-ai-quick-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.course-ai-quick-btn {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 0.7rem;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    font-size: 0.8rem;
+    color: #475569;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    text-align: left;
+}
+
+.course-ai-quick-btn:hover {
+    background: #f1f5f9;
+    border-color: #cbd5e1;
+    transform: translateX(4px);
+}
+
+.course-ai-quick-btn i {
+    width: 24px;
+    height: 24px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.75rem;
+    background: white;
+    color: #64748b;
+    flex-shrink: 0;
+}
+
+.course-ai-chat-area {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    background: white;
+    border-radius: 16px;
+    border: 1px solid #e2e8f0;
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
+    overflow: hidden;
+    animation: fadeIn 0.3s ease both;
+}
+
+.course-ai-chat-header {
+    padding: 1rem 1.3rem;
+    border-bottom: 1px solid #e2e8f0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: #fafbfc;
+}
+
+.course-ai-chat-title {
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: #1e293b;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.course-ai-status-indicator {
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+    font-size: 0.75rem;
+    color: #3b82f6;
+}
+
+.course-ai-status-dot {
+    width: 6px;
+    height: 6px;
+    background: #3b82f6;
+    border-radius: 50%;
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+}
+
+.course-ai-chat-messages {
+    flex: 1;
+    overflow-y: auto;
+    padding: 1.2rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    background: #fafbfc;
+}
+
+.course-ai-message {
+    display: flex;
+    gap: 0.8rem;
+    animation: fadeIn 0.3s ease both;
+}
+
+.course-ai-message.user {
+    flex-direction: row-reverse;
+}
+
+.course-ai-avatar {
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    font-size: 0.85rem;
+}
+
+.course-ai-avatar.user {
+    background: linear-gradient(135deg, #3b82f6 0%, #3b82f6 100%);
+    color: white;
+}
+/* 用户上传了头像时：图片填满头像位 */
+.course-ai-avatar.user.has-img { background: none; overflow: hidden; }
+.course-ai-avatar-img { width: 100%; height: 100%; object-fit: cover; border-radius: inherit; display: block; }
+
+.course-ai-avatar.assistant {
+    background: linear-gradient(135deg, #12568a 0%, #3b82f6 100%);
+    color: white;
+}
+
+.course-ai-bubble {
+    max-width: 75%;
+    padding: 0.9rem 1.1rem;
+    border-radius: 16px;
+    font-size: 0.88rem;
+    line-height: 1.6;
+    position: relative;
+}
+
+.course-ai-message.user .course-ai-bubble {
+    background: linear-gradient(135deg, #12568a 0%, #3b82f6 100%);
+    color: white;
+    border-bottom-right-radius: 4px;
+}
+
+.course-ai-message.assistant .course-ai-bubble {
+    background: white;
+    color: #334155;
+    border: 1px solid #e2e8f0;
+    border-bottom-left-radius: 4px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.03);
+}
+
+.course-ai-bubble p {
+    margin: 0 0 0.5rem;
+}
+
+.course-ai-bubble p:last-child {
+    margin-bottom: 0;
+}
+
+.course-ai-bubble ul, .course-ai-bubble ol {
+    margin: 0.5rem 0;
+    padding-left: 1.2rem;
+}
+
+.course-ai-bubble li {
+    margin: 0.3rem 0;
+}
+
+.course-ai-evidence {
+    margin-top: 0.8rem;
+    padding: 0.8rem;
+    background: #f8fafc;
+    border-radius: 10px;
+    border: 1px solid #e2e8f0;
+}
+
+.course-ai-evidence-title {
+    font-size: 0.7rem;
+    font-weight: 700;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 0.5rem;
+}
+
+.course-ai-reference-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+}
+
+.course-ai-reference {
+    padding: 0.35rem 0.6rem;
+    background: white;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    font-size: 0.72rem;
+    color: #3b82f6;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.course-ai-reference:hover {
+    background: #eff6ff;
+    border-color: #bfdbfe;
+}
+
+.course-ai-chat-input-area {
+    padding: 1rem 1.3rem;
+    border-top: 1px solid #e2e8f0;
+    background: white;
+}
+
+.course-ai-input-wrapper {
+    display: flex;
+    flex-direction: column;
+    gap: 0.7rem;
+}
+
+.course-ai-textarea {
+    width: 100%;
+    min-height: 80px;
+    padding: 0.9rem 1.1rem;
+    border-radius: 12px;
+    border: 1px solid #e2e8f0;
+    font-size: 0.88rem;
+    line-height: 1.5;
+    resize: vertical;
+    transition: all 0.2s ease;
+    font-family: inherit;
+}
+
+.course-ai-textarea:focus {
+    outline: none;
+    border-color: #12568a;
+    box-shadow: 0 0 0 3px rgba(18, 86, 138, 0.1);
+}
+
+.course-ai-textarea::placeholder {
+    color: #94a3b8;
+}
+
+.course-ai-input-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.course-ai-status-text {
+    font-size: 0.78rem;
+    color: #94a3b8;
+}
+
+.course-ai-send-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.65rem 1.3rem;
+    background: linear-gradient(135deg, #12568a 0%, #3b82f6 100%);
+    color: white;
+    border: none;
+    border-radius: 10px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    box-shadow: 0 2px 8px rgba(18, 86, 138, 0.2);
+}
+
+.course-ai-send-btn:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(18, 86, 138, 0.3);
+}
+
+.course-ai-send-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.course-ai-typing-indicator {
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+}
+
+.course-ai-typing-dot {
+    width: 6px;
+    height: 6px;
+    background: #94a3b8;
+    border-radius: 50%;
+    animation: typing 1.4s infinite ease-in-out;
+}
+
+.course-ai-typing-dot:nth-child(1) { animation-delay: 0s; }
+.course-ai-typing-dot:nth-child(2) { animation-delay: 0.2s; }
+.course-ai-typing-dot:nth-child(3) { animation-delay: 0.4s; }
+
+@keyframes typing {
+    0%, 80%, 100% { transform: scale(0.8); opacity: 0.5; }
+    40% { transform: scale(1); opacity: 1; }
+}
+
+@media (max-width: 1024px) {
+    .course-ai-sidebar {
+        width: 250px;
+    }
+}
+
+@media (max-width: 768px) {
+    .course-ai-header-content {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    
+    .course-ai-body {
+        flex-direction: column;
+    }
+    
+    .course-ai-sidebar {
+        width: 100%;
+        flex-direction: row;
+        overflow-x: auto;
+        padding-bottom: 0.5rem;
+    }
+    
+    .course-ai-sidebar-card {
+        flex-shrink: 0;
+        width: 260px;
+    }
+    
+    .course-ai-bubble {
+        max-width: 85%;
+    }
+}
+
+@media (max-width: 480px) {
+    .course-ai-header-section {
+        padding: 1rem;
+    }
+    
+    .course-ai-body {
+        padding: 0.8rem;
+        gap: 0.8rem;
+    }
+    
+    .course-ai-sidebar {
+        flex-direction: column;
+        overflow-x: visible;
+    }
+    
+    .course-ai-sidebar-card {
+        width: 100%;
+    }
+    
+    .course-ai-chat-messages {
+        padding: 0.8rem;
+    }
+    
+    .course-ai-chat-input-area {
+        padding: 0.8rem;
+    }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="course-ai-container">
+    <header class="course-ai-header-section">
+        <div class="course-ai-header-content">
+            <div class="course-ai-title-area">
+                <div class="course-ai-icon">
+                    <i class="fas fa-robot"></i>
+                </div>
+                <div>
+                    <h1 class="course-ai-main-title">{{ course.title }}</h1>
+                    <p class="course-ai-subtitle">课程 AI 助教 - 基于课程内容的智能答疑</p>
+                </div>
+            </div>
+            <div class="course-ai-header-actions">
+                <a href="{% url 'course_study' course.id %}{% if selected_material %}?material={{ selected_material.id }}{% endif %}" class="course-ai-btn course-ai-btn-secondary">
+                    <i class="fas fa-arrow-left"></i> 返回学习
+                </a>
+                <a href="{% url 'chat_interface' %}" class="course-ai-btn course-ai-btn-primary">
+                    <i class="fas fa-comments"></i> 通用 AI
+                </a>
+            </div>
+        </div>
+    </header>
+
+    <main class="course-ai-body">
+        <aside class="course-ai-sidebar">
+            <div class="course-ai-sidebar-card">
+                <div class="course-ai-card-title">当前上下文</div>
+                <div class="course-ai-context-chips">
+                    <span class="course-ai-chip active">
+                        <i class="fas fa-book"></i> {{ course.title|truncatechars:18 }}
+                    </span>
+                    {% if selected_material %}
+                    <span class="course-ai-chip">
+                        <i class="fas fa-file"></i> {{ selected_material.title|truncatechars:12 }}
+                    </span>
+                    {% endif %}
+                    {% if current_page %}
+                    <span class="course-ai-chip">
+                        <i class="fas fa-file-alt"></i> 第{{ current_page }}页
+                    </span>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="course-ai-sidebar-card">
+                <div class="course-ai-card-title">课程资料</div>
+                <div class="course-ai-material-list">
+                    {% for material in materials %}
+                    <div class="course-ai-material-item {% if selected_material and selected_material.id == material.id %}active{% endif %}"
+                         onclick="window.location.href='?material={{ material.id }}'"
+                         title="切换到这份资料">
+                        <div class="course-ai-material-icon {{ material.material_type }}">
+                            {% if material.material_type == 'pdf' %}<i class="fas fa-file-pdf"></i>{% endif %}
+                            {% if material.material_type == 'ppt' %}<i class="fas fa-file-powerpoint"></i>{% endif %}
+                            {% if material.material_type == 'doc' %}<i class="fas fa-file-word"></i>{% endif %}
+                            {% if material.material_type == 'video' %}<i class="fas fa-video"></i>{% endif %}
+                            {% if material.material_type == 'image' %}<i class="fas fa-image"></i>{% endif %}
+                            {% if material.material_type not in 'pdf,ppt,doc,video,image' %}<i class="fas fa-file"></i>{% endif %}
+                        </div>
+                        <div class="course-ai-material-info">
+                            <div class="course-ai-material-name">{{ material.title|truncatechars:20 }}</div>
+                            <div class="course-ai-material-status">{{ material.get_processing_status_display }}</div>
+                        </div>
+                    </div>
+                    {% empty %}
+                    <div class="text-sm text-slate-400 text-center py-4">暂无资料</div>
+                    {% endfor %}
+                </div>
+            </div>
+
+            {% if latest_plan %}
+            <div class="course-ai-sidebar-card">
+                <div class="course-ai-card-title">当前个性化建议</div>
+                <div style="font-size:0.78rem;color:#3b82f6;margin-bottom:0.5rem;">当前学习路径已同步到课程 AI</div>
+                {% if latest_plan.top_module_name %}
+                <div style="font-size:0.8rem;font-weight:600;color:#1e293b;margin-bottom:0.25rem;">{{ latest_plan.top_module_name }}</div>
+                {% endif %}
+                {% if latest_plan.top_module_focus %}
+                <div style="font-size:0.75rem;color:#64748b;margin-bottom:0.5rem;">{{ latest_plan.top_module_focus }}</div>
+                {% endif %}
+                <div class="course-ai-quick-actions" style="margin-top:0.5rem;">
+                    {% if course_ai_focus.suggested_question %}
+                    <button class="course-ai-quick-btn" data-course-ai-prompt="{{ course_ai_focus.suggested_question }}">
+                        <i class="fas fa-bullseye"></i> 直接问当前最优先动作
+                    </button>
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
+            <div class="course-ai-sidebar-card">
+                <div class="course-ai-card-title">快捷提问</div>
+                <div class="course-ai-quick-actions">
+                    <button class="course-ai-quick-btn" data-course-ai-prompt="请帮我总结这门课程的核心知识点">
+                        <i class="fas fa-list"></i> 课程总结
+                    </button>
+                    <button class="course-ai-quick-btn" data-course-ai-prompt="这门课程的学习路径是什么？">
+                        <i class="fas fa-route"></i> 学习路径
+                    </button>
+                    <button class="course-ai-quick-btn" data-course-ai-prompt="请解释当前资料中的重点难点">
+                        <i class="fas fa-lightbulb"></i> 重点难点
+                    </button>
+                    <button class="course-ai-quick-btn" data-course-ai-prompt="如何更好地理解这个概念？">
+                        <i class="fas fa-question-circle"></i> 概念解析
+                    </button>
+                </div>
+            </div>
+        </aside>
+
+        <section class="course-ai-chat-area">
+            <div class="course-ai-chat-header">
+                <div class="course-ai-chat-title">
+                    <i class="fas fa-comments"></i> AI 对话
+                </div>
+                <div class="course-ai-status-indicator">
+                    <span class="course-ai-status-dot"></span>
+                    <span>AI 在线</span>
+                </div>
+            </div>
+
+            <div id="courseAiMessages" class="course-ai-chat-messages"></div>
+
+            <div class="course-ai-chat-input-area">
+                <div class="course-ai-input-wrapper">
+                    <textarea id="courseAiInput" class="course-ai-textarea" placeholder="输入你的问题，AI 将基于课程内容为你解答..."></textarea>
+                    <div class="course-ai-input-footer">
+                        <div id="courseAiStatus" class="course-ai-status-text">课程 AI 已就绪</div>
+                        <button id="courseAiSendBtn" class="course-ai-send-btn" type="button">
+                            <i class="fas fa-paper-plane"></i> 发送
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+</div>
+
+<script>
+window.__COURSE_AI_CONTEXT__ = {
+    courseId: {{ course.id }},
+    hasPlanSync: {% if latest_plan %}true{% else %}false{% endif %},
+    userAvatar: {% if user.avatar %}"{{ user.avatar.url|escapejs }}"{% else %}""{% endif %}
+};
+</script>
+{{ course.title|json_script:"course-ai-course-title" }}
+{% if selected_material %}{{ selected_material.id|json_script:"course-ai-material-id" }}{% endif %}
+{% if selected_material %}{{ selected_material.title|json_script:"course-ai-material-title" }}{% endif %}
+{{ current_page|default:''|json_script:"course-ai-current-page" }}
+{{ latest_plan|default:''|json_script:"course-ai-plan-summary" }}
+{{ course_ai_focus|default:''|json_script:"course-ai-focus-summary" }}
+<link rel="stylesheet" href="https://registry.npmmirror.com/katex/0.16.11/files/dist/katex.min.css">
+<script src="https://registry.npmmirror.com/katex/0.16.11/files/dist/katex.min.js"></script>
+<script src="https://registry.npmmirror.com/katex/0.16.11/files/dist/contrib/auto-render.min.js"></script>
+<script src="https://registry.npmmirror.com/mermaid/10.9.1/files/dist/mermaid.min.js"></script>
+<script>try{ if(window.mermaid) window.mermaid.initialize({ startOnLoad:false, securityLevel:'strict', theme:'neutral' }); }catch(e){}</script>
+<script src="{% static 'course_ai/chat.js' %}?v=20260718c"></script>
+{% endblock %}

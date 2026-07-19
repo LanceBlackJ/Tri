@@ -1,0 +1,222 @@
+{% extends 'base.html' %}
+
+{% block title %}个人资料{% endblock %}
+{% block page_title %}个人资料{% endblock %}
+{% block page_description %}管理你的账户信息与头像{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* 个人资料 · 紧凑后台设置页风格：浅灰页底 + 白卡 + 明显边框 + 分区，无渐变/软阴影 */
+    .profile-page { max-width: 620px; margin: 0 auto; }
+
+    .profile-head { margin-bottom: 1rem; }
+    .profile-head h1 { font-size: 1.3rem; font-weight: 700; color: var(--site-ink); }
+    .profile-head p { font-size: 0.85rem; color: var(--site-muted); margin-top: 0.15rem; }
+
+    .profile-card {
+        background: #fff;
+        border: 1px solid var(--site-line);
+        border-radius: var(--site-radius);
+        overflow: hidden;
+    }
+
+    .profile-section { padding: 1.1rem 1.25rem; }
+    .profile-section + .profile-section,
+    .profile-card form .profile-section:first-child { border-top: 1px solid var(--site-line); }
+
+    .section-title {
+        font-size: 0.72rem; font-weight: 700; letter-spacing: 0.04em;
+        text-transform: uppercase; color: var(--site-muted); margin-bottom: 0.85rem;
+    }
+
+    /* 头像行 */
+    .avatar-row { display: flex; align-items: center; gap: 1rem; }
+    .avatar {
+        width: 64px; height: 64px; border-radius: 50%;
+        background: var(--site-accent); display: inline-flex; align-items: center; justify-content: center;
+        font-size: 1.5rem; font-weight: 600; color: #fff;
+        border: 1px solid var(--site-line-strong); position: relative; overflow: hidden; flex: none;
+    }
+    .avatar-img { width: 100%; height: 100%; object-fit: cover; }
+    .avatar-edit {
+        position: absolute; bottom: 0; right: 0; width: 22px; height: 22px;
+        background: var(--site-accent-strong); border: 2px solid #fff; border-radius: 50%;
+        display: flex; align-items: center; justify-content: center; cursor: pointer;
+        font-size: 0.72rem; color: #fff;
+    }
+    .avatar-edit input { display: none; }
+    .avatar-meta { flex: 1; min-width: 0; }
+    .avatar-meta .user-name { font-size: 1rem; font-weight: 600; color: var(--site-ink); }
+    .avatar-meta .user-email { font-size: 0.83rem; color: var(--site-muted); margin-top: 0.1rem; }
+    .change-link {
+        display: inline-block; margin-top: 0.4rem; font-size: 0.82rem; font-weight: 600;
+        color: var(--site-accent); cursor: pointer;
+    }
+    .change-link:hover { text-decoration: underline; }
+
+    /* 表单字段网格 */
+    .field-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.9rem 1rem; }
+    .field { display: flex; flex-direction: column; }
+    .field.full { grid-column: 1 / -1; }
+    .field label { font-size: 0.78rem; font-weight: 600; color: var(--site-ink); margin-bottom: 0.35rem; }
+    .field input {
+        width: 100%; padding: 0.5rem 0.7rem; border: 1px solid var(--site-line-strong);
+        border-radius: var(--site-radius); font-size: 0.9rem; background: #fff; color: var(--site-ink);
+        transition: border-color 0.14s ease, box-shadow 0.14s ease;
+    }
+    .field input:focus { outline: none; border-color: var(--site-accent); box-shadow: 0 0 0 3px rgba(18, 86, 138, 0.15); }
+    .field input:disabled { background: var(--site-bg); color: var(--site-muted); cursor: not-allowed; }
+    .field input::placeholder { color: #9aa4af; }
+    .field-hint { font-size: 0.74rem; color: var(--site-muted); margin-top: 0.55rem; }
+
+    /* 底部操作条 */
+    .form-actions {
+        display: flex; gap: 0.6rem; padding: 0.9rem 1.25rem;
+        border-top: 1px solid var(--site-line); background: var(--site-bg);
+    }
+    .profile-page .btn {
+        padding: 0.45rem 1.05rem; border-radius: var(--site-radius); font-weight: 600;
+        font-size: 0.85rem; cursor: pointer; border: 1px solid transparent; min-height: 2rem;
+    }
+    .profile-page .btn-primary { background: var(--site-accent); color: #fff; border-color: rgba(0, 0, 0, 0.14); }
+    .profile-page .btn-primary:hover { background: var(--site-accent-strong); }
+    .profile-page .btn-secondary { background: #fff; color: var(--site-ink); border: 1px solid var(--site-line-strong); }
+    .profile-page .btn-secondary:hover { background: #f3f4f6; }
+
+    @media (max-width: 560px) { .field-grid { grid-template-columns: 1fr; } }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="profile-page">
+    {% if messages %}
+        {% for message in messages %}
+            <div class="alert" style="margin-bottom:1rem;border:1px solid var(--site-line);border-radius:var(--site-radius);padding:0.6rem 0.9rem;font-size:0.85rem;background:#e9f6ef;color:#116329;">{{ message }}</div>
+        {% endfor %}
+    {% endif %}
+
+    <div class="profile-card">
+        <!-- 头像区 -->
+        <div class="profile-section">
+            <div class="avatar-row">
+                <div class="avatar" id="avatar-display">
+                    {% if user.avatar %}
+                        <img src="{{ user.avatar.url }}" alt="头像" class="avatar-img" id="avatar-img">
+                    {% else %}
+                        <span id="avatar-initial">{{ user.username|slice:":1"|upper }}</span>
+                    {% endif %}
+                    <label class="avatar-edit" title="更换头像">
+                        <!-- 该输入框在 <form> 之外，用 HTML5 form 属性关联到 profile-form，否则头像不会随表单提交 -->
+                        <input type="file" id="avatar-input" name="avatar" accept="image/*" form="profile-form">
+                        <i class="fas fa-camera"></i>
+                    </label>
+                </div>
+                <div class="avatar-meta">
+                    <div class="user-name">{{ user.full_name|default:user.username }}</div>
+                    <div class="user-email">{{ user.email }}</div>
+                    <label for="avatar-input" class="change-link">更换头像</label>
+                </div>
+            </div>
+        </div>
+
+        <form id="profile-form" method="post" enctype="multipart/form-data">
+            {% csrf_token %}
+
+            <!-- 账户信息（只读） -->
+            <div class="profile-section">
+                <div class="section-title">账户信息</div>
+                <div class="field-grid">
+                    <div class="field">
+                        <label>用户名</label>
+                        <input type="text" value="{{ user.username }}" disabled>
+                    </div>
+                    <div class="field">
+                        <label>邮箱</label>
+                        <input type="email" value="{{ user.email }}" disabled>
+                    </div>
+                </div>
+                <div class="field-hint">用户名和邮箱不可修改。</div>
+            </div>
+
+            <!-- 个人信息（可编辑） -->
+            <div class="profile-section">
+                <div class="section-title">个人信息</div>
+                <div class="field-grid">
+                    <div class="field full">
+                        <label>姓名</label>
+                        <input type="text" name="full_name" value="{{ user.full_name|default:'' }}" placeholder="请输入姓名">
+                    </div>
+                    <div class="field">
+                        <label>专业</label>
+                        <input type="text" name="major" value="{{ user.major|default:'' }}" placeholder="例如：计算机科学与技术">
+                    </div>
+                    <div class="field">
+                        <label>年级</label>
+                        <input type="text" name="grade" value="{{ user.grade|default:'' }}" placeholder="例如：大二">
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-actions">
+                <button type="submit" class="btn btn-primary">保存更改</button>
+                <button type="button" class="btn btn-secondary" onclick="handleCancel()">取消</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    // 头像预览功能
+    const avatarInput = document.getElementById('avatar-input');
+    const avatarDisplay = document.getElementById('avatar-display');
+    const avatarImg = document.getElementById('avatar-img');
+    const avatarInitial = document.getElementById('avatar-initial');
+    
+    // 保存原始头像URL
+    const originalAvatarUrl = avatarImg ? avatarImg.src : null;
+    
+    avatarInput.addEventListener('change', function(e) {
+        const file = e.target.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                // 如果有img元素，更新src
+                if (avatarImg) {
+                    avatarImg.src = e.target.result;
+                } else {
+                    // 如果没有img元素，创建新的并替换initial
+                    const newImg = document.createElement('img');
+                    newImg.src = e.target.result;
+                    newImg.className = 'avatar-img';
+                    newImg.id = 'avatar-img';
+                    if (avatarInitial) {
+                        avatarInitial.replaceWith(newImg);
+                    } else {
+                        avatarDisplay.insertBefore(newImg, avatarDisplay.firstChild);
+                    }
+                }
+            };
+            reader.readAsDataURL(file);
+        }
+    });
+    
+    // 取消按钮处理
+    function handleCancel() {
+        // 如果有原始头像，恢复原始头像
+        if (originalAvatarUrl) {
+            if (avatarImg) {
+                avatarImg.src = originalAvatarUrl;
+            }
+        } else {
+            // 如果没有原始头像，恢复initial
+            if (avatarImg) {
+                avatarImg.remove();
+            }
+        }
+        // 清空文件输入
+        avatarInput.value = '';
+        // 返回上一页
+        window.history.back();
+    }
+</script>
+{% endblock %}

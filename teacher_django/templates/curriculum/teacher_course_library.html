@@ -1,0 +1,633 @@
+{% extends 'base.html' %}
+
+{% block title %}教师课程资料库{% endblock %}
+{% block page_title %}课程中心{% endblock %}
+{% block page_description %}建课、补资料与发布{% endblock %}
+
+{% block extra_css %}
+<style>
+    .studio-shell {
+        display: grid;
+        gap: 1.8rem;
+    }
+
+    @keyframes studioFadeUp {
+        from {
+            opacity: 0;
+            transform: translateY(18px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .studio-hero {
+        position: relative;
+        overflow: hidden;
+        border-radius: 8px;
+        padding: 2rem 2.1rem;
+        background: #ffffff;
+        border: 1px solid #e3e8ee;
+        color: #1f2328;
+        box-shadow: 0 18px 40px rgba(15, 23, 42, 0.05);
+        animation: studioFadeUp 0.55s ease both;
+    }
+
+    .studio-hero::after {
+        content: '';
+        position: absolute;
+        inset: auto -10% -40% auto;
+        width: 300px;
+        height: 300px;
+        border-radius: 999px;
+        background: rgba(255,255,255,0.08);
+        filter: blur(10px);
+    }
+
+    .studio-hero-grid {
+        position: relative;
+        z-index: 1;
+        display: grid;
+        grid-template-columns: minmax(0, 1.45fr) minmax(250px, 0.85fr);
+        gap: 1rem;
+        align-items: start;
+    }
+
+    .studio-kicker {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.45rem;
+        padding: 0.34rem 0.72rem;
+        border-radius: 6px;
+        background: #eef2f6;
+        color: #475569;
+        font-size: 0.72rem;
+        font-weight: 700;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+    }
+
+    .studio-title {
+        margin-top: 0.9rem;
+        font-family: 'Noto Serif SC', serif;
+        font-size: clamp(1.6rem, 2.9vw, 2.35rem);
+        line-height: 1.18;
+        font-weight: 700;
+        letter-spacing: -0.02em;
+        color: #0f172a;
+    }
+
+    .studio-copy {
+        margin-top: 0.65rem;
+        max-width: 34rem;
+        font-size: 0.86rem;
+        line-height: 1.6;
+        color: #55606b;
+    }
+
+    .studio-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.7rem;
+        margin-top: 1rem;
+    }
+
+    .studio-button {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.45rem;
+        padding: 0.78rem 1rem;
+        border-radius: 999px;
+        font-size: 0.82rem;
+        font-weight: 700;
+    }
+
+    .studio-button.primary {
+        background: #12568a;
+        color: #ffffff;
+    }
+
+    .studio-button.primary:hover { filter: brightness(1.06); }
+
+    .studio-button.secondary {
+        background: #ffffff;
+        color: #334155;
+        border: 1px solid #d0d7de;
+    }
+
+    .studio-button.secondary:hover { background: #f6f8fa; border-color: #afb8c1; }
+
+    .studio-summary-grid {
+        display: grid;
+        gap: 0.75rem;
+    }
+
+    .studio-summary-card,
+    .studio-toolbar,
+    .studio-panel,
+    .studio-form-panel,
+    .studio-course-card,
+    .studio-empty {
+        border-radius: 22px;
+        border: 1px solid rgba(148, 163, 184, 0.16);
+        box-shadow: 0 16px 34px rgba(15, 23, 42, 0.05);
+    }
+
+    .studio-summary-card {
+        padding: 0.9rem 0.95rem;
+        background: #ffffff;
+        border: 1px solid #e3e8ee;
+    }
+
+    .studio-summary-label {
+        font-size: 0.72rem;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: #55606b;
+    }
+
+    .studio-summary-value {
+        margin-top: 0.35rem;
+        font-size: 1.42rem;
+        font-weight: 800;
+        color: #1f2328;
+    }
+
+    .studio-summary-note {
+        margin-top: 0.2rem;
+        font-size: 0.76rem;
+        color: #55606b;
+    }
+
+    .studio-toolbar {
+        display: grid;
+        grid-template-columns: minmax(0, 1.2fr) minmax(260px, 0.8fr);
+        gap: 1.2rem;
+        animation: studioFadeUp 0.6s ease both;
+        animation-delay: 0.08s;
+    }
+
+    .studio-toolbar-block,
+    .studio-focus-block {
+        padding: 1.2rem;
+        background: rgba(255,255,255,0.84);
+    }
+
+    .studio-toolbar-label {
+        font-size: 0.72rem;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: #64748b;
+    }
+
+    .studio-toolbar-title {
+        margin-top: 0.35rem;
+        font-size: 1rem;
+        font-weight: 800;
+        color: #0f172a;
+    }
+
+    .studio-toolbar-copy {
+        margin-top: 0.2rem;
+        font-size: 0.76rem;
+        line-height: 1.45;
+        color: #64748b;
+    }
+
+    .studio-option-grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 0.9rem;
+        margin-top: 0.95rem;
+    }
+
+    .studio-option-card {
+        display: grid;
+        gap: 0.4rem;
+        min-height: 8.8rem;
+        padding: 1rem;
+        border-radius: 20px;
+        background: linear-gradient(180deg, #ffffff, #f6f7f8);
+        border: 1px solid rgba(148, 163, 184, 0.18);
+        transition: transform 0.22s ease, box-shadow 0.22s ease;
+    }
+
+    .studio-option-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 18px 32px rgba(15, 23, 42, 0.08);
+    }
+
+    .studio-option-icon {
+        width: 2.4rem;
+        height: 2.4rem;
+        border-radius: 15px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        background: #eef2f4;
+        color: #33424c;
+        font-size: 0.92rem;
+    }
+
+    .studio-option-card strong {
+        font-size: 0.9rem;
+        font-weight: 800;
+        color: #0f172a;
+    }
+
+    .studio-option-card p,
+    .studio-option-card span {
+        font-size: 0.76rem;
+        line-height: 1.45;
+        color: #64748b;
+    }
+
+    .studio-focus-list {
+        display: grid;
+        gap: 0.75rem;
+        margin-top: 0.95rem;
+    }
+
+    .studio-focus-line {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.75rem;
+        padding-bottom: 0.75rem;
+        border-bottom: 1px solid rgba(148, 163, 184, 0.16);
+    }
+
+    .studio-focus-line:last-child {
+        border-bottom: none;
+        padding-bottom: 0;
+    }
+
+    .studio-focus-key {
+        font-size: 0.76rem;
+        color: #64748b;
+    }
+
+    .studio-focus-value {
+        font-size: 0.8rem;
+        font-weight: 700;
+        color: #334155;
+        text-align: right;
+    }
+
+    .studio-grid {
+        display: grid;
+        grid-template-columns: minmax(360px, 0.9fr) minmax(0, 1.3fr);
+        gap: 1.6rem;
+    }
+
+    .studio-form-panel,
+    .studio-panel {
+        padding: 1.35rem;
+        background: rgba(255,255,255,0.84);
+        animation: studioFadeUp 0.6s ease both;
+    }
+
+    .studio-form-panel {
+        animation-delay: 0.16s;
+    }
+
+    .studio-panel {
+        animation-delay: 0.22s;
+    }
+
+    .studio-panel-kicker {
+        display: inline-block;
+        margin-bottom: 0.35rem;
+        font-size: 0.72rem;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: #5b727c;
+    }
+
+    .studio-panel-title {
+        font-size: 1.14rem;
+        font-weight: 800;
+        color: #0f172a;
+    }
+
+    .studio-panel-copy {
+        margin-top: 0.2rem;
+        font-size: 0.76rem;
+        line-height: 1.45;
+        color: #64748b;
+    }
+
+    .studio-form {
+        display: grid;
+        gap: 0.9rem;
+        margin-top: 1rem;
+    }
+
+    .studio-field label {
+        display: block;
+        margin-bottom: 0.38rem;
+        font-size: 0.8rem;
+        font-weight: 700;
+        color: #334155;
+    }
+
+    .studio-field input,
+    .studio-field select,
+    .studio-field textarea {
+        width: 100%;
+        border-radius: 16px;
+        border: 1px solid rgba(148,163,184,0.24);
+        background: #fff;
+        padding: 0.82rem 0.92rem;
+        font-size: 0.88rem;
+        color: #0f172a;
+        outline: none;
+    }
+
+    .studio-field textarea {
+        min-height: 8rem;
+        resize: vertical;
+    }
+
+    .studio-field input:focus,
+    .studio-field select:focus,
+    .studio-field textarea:focus {
+        border-color: rgba(91, 114, 124, 0.42);
+        box-shadow: 0 0 0 4px rgba(91, 114, 124, 0.08);
+    }
+
+    .studio-error {
+        margin-top: 0.3rem;
+        font-size: 0.76rem;
+        color: #b91c1c;
+    }
+
+    .studio-submit {
+        width: 100%;
+        margin-top: 0.2rem;
+        border-radius: 999px;
+        background: #33424c;
+        color: #fff;
+        font-size: 0.88rem;
+        font-weight: 800;
+        padding: 0.88rem 1rem;
+    }
+
+    .studio-course-list {
+        display: grid;
+        gap: 1rem;
+        margin-top: 1rem;
+    }
+
+    .studio-course-card {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 1rem;
+        padding: 1.1rem;
+        background: linear-gradient(180deg, rgba(255,255,255,0.94), rgba(247,246,242,0.94));
+        transition: transform 0.22s ease, box-shadow 0.22s ease;
+    }
+
+    .studio-course-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 18px 32px rgba(15, 23, 42, 0.08);
+    }
+
+    .studio-course-title {
+        font-size: 0.96rem;
+        font-weight: 700;
+        color: #0f172a;
+    }
+
+    .studio-course-copy {
+        margin-top: 0.25rem;
+        font-size: 0.76rem;
+        line-height: 1.45;
+        color: #64748b;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+    }
+
+    .studio-meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.45rem 0.8rem;
+        margin-top: 0.7rem;
+        font-size: 0.74rem;
+        color: #64748b;
+    }
+
+    .studio-chip {
+        display: inline-flex;
+        align-items: center;
+        padding: 0.32rem 0.62rem;
+        border-radius: 999px;
+        background: #ece9e3;
+        color: #5f6a6f;
+        font-size: 0.72rem;
+        font-weight: 700;
+        white-space: nowrap;
+    }
+
+    .studio-card-action {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0.62rem 0.88rem;
+        border-radius: 12px;
+        background: #12568a;
+        /* !important 压过 site.css 的 [class$='-card'] a 染色，否则白字被改成深色、压深底看不清 */
+        color: #fff !important;
+        font-size: 0.78rem;
+        font-weight: 700;
+        white-space: nowrap;
+        transition: background 0.15s ease;
+    }
+    .studio-card-action:hover {
+        background: #0e4470;
+    }
+
+    .studio-empty {
+        padding: 1rem;
+        background: rgba(255,255,255,0.84);
+        font-size: 0.8rem;
+        color: #64748b;
+        line-height: 1.5;
+        text-align: center;
+    }
+
+    @media (max-width: 1100px) {
+        .studio-hero-grid,
+        .studio-toolbar,
+        .studio-grid,
+        .studio-option-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    @media (max-width: 640px) {
+        .studio-hero,
+        .studio-toolbar-block,
+        .studio-focus-block,
+        .studio-form-panel,
+        .studio-panel {
+            border-radius: 22px;
+            padding: 1rem;
+        }
+
+        .studio-course-card {
+            flex-direction: column;
+        }
+    }
+
+    /* ============ 尖角化：与 AI课件页(generator)统一 ============ */
+    .studio-hero,
+    .studio-summary-card,
+    .studio-toolbar,
+    .studio-panel,
+    .studio-form-panel,
+    .studio-course-card,
+    .studio-empty,
+    .studio-option-card,
+    .studio-focus-block { border-radius: 8px; }
+    .studio-button { border-radius: 6px; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="studio-shell">
+    <section class="studio-hero">
+        <div class="studio-hero-grid">
+            <div>
+                <span class="studio-kicker"><i class="fas fa-layer-group"></i> Course Studio</span>
+                <h1 class="studio-title">把建课、资料和发布节奏放到一个更清楚的工作区里。</h1>
+                <p class="studio-copy">先看主线，再决定是建课、补资料还是进入管理。</p>
+                <div class="studio-actions">
+                    <a href="#create-course" class="studio-button primary">新建课程</a>
+                    <a href="{% url 'course_library' %}" class="studio-button secondary">查看学生侧课程库</a>
+                </div>
+            </div>
+            <div class="studio-summary-grid">
+                <div class="studio-summary-card">
+                    <div class="studio-summary-label">课程总数</div>
+                    <div class="studio-summary-value">{{ courses|length }}</div>
+                    <div class="studio-summary-note">你当前在管理的课程</div>
+                </div>
+                <div class="studio-summary-card">
+                    <div class="studio-summary-label">已发布</div>
+                    <div class="studio-summary-value">{{ published_count }}</div>
+                    <div class="studio-summary-note">可继续进入详情发布</div>
+                </div>
+                <div class="studio-summary-card">
+                    <div class="studio-summary-label">下一步</div>
+                    <div class="studio-summary-value">上传</div>
+                    <div class="studio-summary-note">先建课程，再补资料</div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="studio-toolbar">
+        <div class="studio-toolbar-block">
+            <div class="studio-toolbar-label">Workspace Modes</div>
+            <div class="studio-toolbar-title">按任务进入课程中心</div>
+            <div class="studio-toolbar-copy">把高频动作拆成三个入口，减少来回切换。</div>
+            <div class="studio-option-grid">
+                <a href="#create-course" class="studio-option-card">
+                    <span class="studio-option-icon"><i class="fas fa-plus"></i></span>
+                    <strong>创建课程</strong>
+                    <p>先建课程，再补资料。</p>
+                    <span>跳到创建区</span>
+                </a>
+                <a href="{% if courses %}{% url 'teacher_course_detail' courses.0.id %}{% else %}#create-course{% endif %}" class="studio-option-card">
+                    <span class="studio-option-icon"><i class="fas fa-file-arrow-up"></i></span>
+                    <strong>补充资料</strong>
+                    <p>直接进入最近课程补资料。</p>
+                    <span>进入最近课程</span>
+                </a>
+                <a href="{% url 'course_library' %}" class="studio-option-card">
+                    <span class="studio-option-icon"><i class="fas fa-graduation-cap"></i></span>
+                    <strong>查看学生侧</strong>
+                    <p>查看学生侧入口和呈现。</p>
+                    <span>打开课程库</span>
+                </a>
+            </div>
+        </div>
+
+        <aside class="studio-focus-block">
+            <div class="studio-toolbar-label">Today Focus</div>
+            <div class="studio-toolbar-title">先把当前节奏定下来</div>
+            <div class="studio-toolbar-copy">右侧只留今天最该判断的几项。</div>
+            <div class="studio-focus-list">
+                <div class="studio-focus-line">
+                    <span class="studio-focus-key">当前主动作</span>
+                    <span class="studio-focus-value">{% if courses %}继续完善已有课程{% else %}创建第一门课程{% endif %}</span>
+                </div>
+                <div class="studio-focus-line">
+                    <span class="studio-focus-key">课程数量</span>
+                    <span class="studio-focus-value">{{ courses|length }} 门</span>
+                </div>
+                <div class="studio-focus-line">
+                    <span class="studio-focus-key">建议顺序</span>
+                    <span class="studio-focus-value">建课 → 上传 → 发布</span>
+                </div>
+            </div>
+        </aside>
+    </section>
+
+    <section class="studio-grid">
+        <section class="studio-form-panel" id="create-course">
+            <span class="studio-panel-kicker">Create</span>
+            <div class="studio-panel-title">创建资料课程</div>
+            <div class="studio-panel-copy">把表单收成更清晰的创建区。</div>
+            <form method="post" class="studio-form">
+                {% csrf_token %}
+                {% for field in form %}
+                    <div class="studio-field">
+                        <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+                        {{ field }}
+                        {% if field.errors %}
+                            <div class="studio-error">{{ field.errors|join:'，' }}</div>
+                        {% endif %}
+                    </div>
+                {% endfor %}
+                <button type="submit" class="studio-submit">创建资料课程</button>
+            </form>
+        </section>
+
+        <section class="studio-panel">
+            <span class="studio-panel-kicker">Courses</span>
+            <div class="studio-panel-title">我的资料课程</div>
+            <div class="studio-panel-copy">把课程列表收成更轻的卡片结构。</div>
+            <div class="studio-course-list">
+                {% for course in courses %}
+                    <article class="studio-course-card">
+                        <div>
+                            <div class="studio-course-title">{{ course.title }}</div>
+                            <div class="studio-course-copy">{{ course.summary|default:course.description|default:'暂未填写简介'|truncatechars:46 }}</div>
+                            <div class="studio-meta">
+                                <span>状态：{{ course.get_status_display }}</span>
+                                <span>可见性：{{ course.get_visibility_display }}</span>
+                                <span>资料数：{{ course.materials.count }}</span>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <span class="studio-chip">{{ course.get_status_display }}</span>
+                            <a href="{% url 'teacher_course_detail' course.id %}" class="studio-card-action">进入管理</a>
+                        </div>
+                    </article>
+                {% empty %}
+                    <div class="studio-empty">还没有资料课程。先在左侧创建第一门课。</div>
+                {% endfor %}
+            </div>
+        </section>
+    </section>
+</div>
+{% endblock %}

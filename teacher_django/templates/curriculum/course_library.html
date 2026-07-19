@@ -1,0 +1,595 @@
+{% extends 'base.html' %}
+
+{% block title %}学习中心 - Tri{% endblock %}
+{% block page_title %}学习中心{% endblock %}
+{% block page_description %}继续学习、回看与练习{% endblock %}
+
+{% block extra_css %}
+<style>
+    .learning-hub {
+        display: grid;
+        gap: 1.2rem;
+        background: #f8fafc;
+    }
+
+    .learning-hero {
+        position: relative;
+        overflow: hidden;
+        border-radius: 30px;
+        padding: 1.8rem;
+        border: 1px solid rgba(71, 85, 105, 0.16);
+        background:
+            radial-gradient(700px 280px at 8% 10%, rgba(59, 130, 246, 0.2), transparent 30%),
+            radial-gradient(640px 260px at 95% 92%, rgba(18, 86, 138, 0.2), transparent 32%),
+            linear-gradient(135deg, #0f172a 0%, #1e293b 58%, #0f172a 100%);
+        color: #ffffff;
+        box-shadow: 0 22px 46px rgba(15, 23, 42, 0.25);
+    }
+
+    .learning-hero-grid {
+        display: grid;
+        grid-template-columns: minmax(0, 1.35fr) minmax(250px, 0.78fr);
+        gap: 1.1rem;
+        align-items: start;
+    }
+
+    .learning-kicker {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+        padding: 0.34rem 0.68rem;
+        border-radius: 999px;
+        background: rgba(59, 130, 246, 0.2);
+        font-size: 0.72rem;
+        font-weight: 600;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: #93c5fd;
+    }
+
+    .learning-title {
+        margin-top: 0.9rem;
+        font-family: 'Noto Serif SC', serif;
+        font-size: clamp(1.55rem, 3vw, 2.2rem);
+        line-height: 1.18;
+        font-weight: 700;
+        letter-spacing: -0.03em;
+        color: #ffffff;
+    }
+
+    .learning-copy {
+        margin-top: 0.6rem;
+        font-size: 0.9rem;
+        line-height: 1.62;
+        color: #cbd5e1;
+    }
+
+    .learning-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.8rem;
+        margin-top: 1.2rem;
+    }
+
+    .learning-button {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.45rem;
+        padding: 0.85rem 1.2rem;
+        border-radius: 999px;
+        font-size: 0.86rem;
+        font-weight: 700;
+        transition: all 0.22s ease;
+    }
+
+    .learning-button:hover {
+        transform: translateY(-2px);
+    }
+
+    .learning-button.primary {
+        background: #3b82f6;
+        color: #ffffff;
+        box-shadow: 0 10px 25px rgba(59, 130, 246, 0.35);
+    }
+
+    .learning-button.primary:hover {
+        background: #2563eb;
+    }
+
+    .learning-button.secondary {
+        background: rgba(255, 255, 255, 0.1);
+        color: #ffffff;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+    }
+
+    .learning-button.secondary:hover {
+        background: rgba(255, 255, 255, 0.15);
+    }
+
+    .learning-summary-grid {
+        display: grid;
+        gap: 0.8rem;
+    }
+
+    .learning-summary-card {
+        border-radius: 16px;
+        padding: 1rem;
+        background: #ffffff;
+        border: 1px solid #e2e8f0;
+        box-shadow: 0 8px 24px rgba(15, 23, 42, 0.06);
+    }
+
+    .learning-summary-label {
+        font-size: 0.72rem;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        color: #64748b;
+        font-weight: 600;
+    }
+
+    .learning-summary-value {
+        margin-top: 0.4rem;
+        font-size: 1.6rem;
+        font-weight: 800;
+        color: #1e293b;
+    }
+
+    .learning-summary-note {
+        margin-top: 0.25rem;
+        font-size: 0.8rem;
+        color: #475569;
+    }
+
+    .learning-panel,
+    .learning-card,
+    .learning-focus-card,
+    .learning-route-card,
+    .learning-course-card,
+    .learning-empty {
+        border-radius: 22px;
+        border: 1px solid #e2e8f0;
+        background: #ffffff;
+        box-shadow: 0 8px 24px rgba(15, 23, 42, 0.04);
+    }
+
+    .learning-grid {
+        display: grid;
+        grid-template-columns: minmax(0, 1.26fr) minmax(0, 0.94fr);
+        gap: 1.25rem;
+    }
+
+    .learning-panel {
+        padding: 1.3rem;
+    }
+
+    .learning-panel-header {
+        margin-bottom: 1rem;
+    }
+
+    .learning-panel-kicker {
+        display: inline-block;
+        margin-bottom: 0.4rem;
+        font-size: 0.7rem;
+        font-weight: 700;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        color: #0ea5e9;
+    }
+
+    .learning-panel-title {
+        font-size: 1.2rem;
+        font-weight: 800;
+        color: #0f172a;
+        letter-spacing: -0.02em;
+    }
+
+    .learning-panel-copy {
+        margin-top: 0.25rem;
+        font-size: 0.82rem;
+        line-height: 1.5;
+        color: #64748b;
+    }
+
+    .learning-card-stack,
+    .learning-route-grid,
+    .learning-course-grid {
+        display: grid;
+        gap: 0.9rem;
+    }
+
+    .learning-course-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .learning-card,
+    .learning-focus-card,
+    .learning-course-card {
+        padding: 1.1rem;
+        transition: all 0.22s ease;
+    }
+
+    .learning-card:hover,
+    .learning-focus-card:hover,
+    .learning-course-card:hover,
+    .learning-route-card:hover {
+        transform: translateY(-2px);
+        border-color: #cbd5e1;
+        box-shadow: 0 12px 28px rgba(15, 23, 42, 0.08);
+    }
+
+    .learning-card-top,
+    .learning-course-top {
+        display: flex;
+        justify-content: space-between;
+        gap: 0.8rem;
+        align-items: flex-start;
+    }
+
+    .learning-card-title {
+        font-size: 0.98rem;
+        font-weight: 700;
+        color: #1e293b;
+    }
+
+    .learning-card-subtitle {
+        margin-top: 0.2rem;
+        font-size: 0.8rem;
+        color: #64748b;
+        line-height: 1.5;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+    }
+
+    .learning-chip {
+        display: inline-flex;
+        align-items: center;
+        padding: 0.35rem 0.7rem;
+        border-radius: 999px;
+        font-size: 0.72rem;
+        font-weight: 700;
+        background: #e0f2fe;
+        color: #0369a1;
+    }
+
+    .learning-chip.warm {
+        background: #e8f1fb;
+        color: #0e4470;
+    }
+
+    .learning-card-meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem 1rem;
+        margin-top: 0.7rem;
+        font-size: 0.76rem;
+        color: #94a3b8;
+    }
+
+    .learning-card-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.65rem;
+        margin-top: 0.9rem;
+    }
+
+    .learning-card-action {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0.65rem 1rem;
+        border-radius: 12px;
+        font-size: 0.78rem;
+        font-weight: 700;
+        background: linear-gradient(135deg, #12568a 0%, #12568a 100%);
+        color: #ffffff;
+        transition: all 0.2s ease;
+        box-shadow: 0 4px 12px rgba(18, 86, 138, 0.3);
+    }
+
+    .learning-card-action:hover {
+        background: linear-gradient(135deg, #0e4470 0%, #3b82f6 100%);
+        transform: translateY(-1px);
+        box-shadow: 0 6px 16px rgba(18, 86, 138, 0.4);
+    }
+
+    .learning-card-action.soft {
+        background: #f1f5f9;
+        color: #475569;
+        box-shadow: none;
+    }
+
+    .learning-card-action.soft:hover {
+        background: #e2e8f0;
+        box-shadow: none;
+    }
+
+    .learning-card-action.primary {
+        background: linear-gradient(135deg, #12568a 0%, #12568a 100%);
+        color: #ffffff;
+        box-shadow: 0 4px 12px rgba(18, 86, 138, 0.3);
+    }
+
+    .learning-card-action.primary:hover {
+        background: linear-gradient(135deg, #0e4470 0%, #3b82f6 100%);
+        box-shadow: 0 6px 16px rgba(18, 86, 138, 0.4);
+    }
+
+    .learning-card-action.process {
+        background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+        color: #ffffff;
+        box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
+    }
+
+    .learning-card-action.process:hover {
+        background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
+        box-shadow: 0 6px 16px rgba(239, 68, 68, 0.4);
+    }
+
+    .learning-card-action.browse {
+        background: linear-gradient(135deg, #3b82f6 0%, #0e4470 100%);
+        color: #ffffff;
+        box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+    }
+
+    .learning-card-action.browse:hover {
+        background: linear-gradient(135deg, #0e4470 0%, #047857 100%);
+        box-shadow: 0 6px 16px rgba(59, 130, 246, 0.4);
+    }
+
+    .learning-card-action.button-reset {
+        border: none;
+        cursor: pointer;
+    }
+
+    .learning-focus-card {
+        background: linear-gradient(180deg, #f0f6fc, #ffffff);
+        border-color: #fcd34d;
+    }
+
+    .learning-focus-card strong {
+        display: block;
+        font-size: 0.95rem;
+        color: #92400e;
+        font-weight: 700;
+    }
+
+    .learning-focus-card p {
+        margin-top: 0.3rem;
+        font-size: 0.8rem;
+        line-height: 1.5;
+        color: #0e4470;
+    }
+
+    .learning-archive-meta {
+        margin-top: 0.6rem;
+        font-size: 0.76rem;
+        color: #94a3b8;
+    }
+
+    .learning-route-card {
+        display: grid;
+        grid-template-columns: auto 1fr auto;
+        align-items: center;
+        gap: 0.9rem;
+        padding: 1rem;
+    }
+
+    .learning-route-icon {
+        width: 2.5rem;
+        height: 2.5rem;
+        border-radius: 14px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1rem;
+        color: #0ea5e9;
+        background: linear-gradient(135deg, #e0f2fe, #dbeafe);
+    }
+
+    .learning-route-title {
+        font-size: 0.92rem;
+        font-weight: 700;
+        color: #1e293b;
+    }
+
+    .learning-route-copy {
+        margin-top: 0.2rem;
+        font-size: 0.78rem;
+        line-height: 1.45;
+        color: #64748b;
+    }
+
+    .learning-route-arrow {
+        color: #0ea5e9;
+        font-size: 0.85rem;
+    }
+
+    .learning-card-stack-archive {
+        grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    }
+
+    .learning-empty {
+        padding: 1.2rem;
+        font-size: 0.85rem;
+        color: #94a3b8;
+        line-height: 1.6;
+        text-align: center;
+    }
+
+    @media (max-width: 1100px) {
+        .learning-hero-grid,
+        .learning-grid,
+        .learning-course-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    @media (max-width: 640px) {
+        .learning-hero,
+        .learning-panel {
+            border-radius: 22px;
+            padding: 1rem;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="learning-hub">
+    <section class="learning-hero">
+        <div class="learning-hero-grid">
+            <div>
+                <span class="learning-kicker"><i class="fas fa-graduation-cap"></i> Learning</span>
+                <h1 class="learning-title">先继续，再回看，再练习。</h1>
+                <p class="learning-copy">把今天最该开始的任务放在前面。</p>
+                <div class="learning-actions">
+                    <a href="{% if continue_learning %}{{ continue_learning.0.continue_url }}{% else %}{% url 'profile_building' %}{% endif %}" class="learning-button primary">继续上次学习</a>
+                </div>
+            </div>
+            <div class="learning-summary-grid">
+                <div class="learning-summary-card">
+                    <div class="learning-summary-label">课程</div>
+                    <div class="learning-summary-value">{{ learning_summary.course_count }}</div>
+                    <div class="learning-summary-note">可进入课程</div>
+                </div>
+                <div class="learning-summary-card">
+                    <div class="learning-summary-label">练习</div>
+                    <div class="learning-summary-value">{{ learning_summary.weekly_practice_count }}</div>
+                    <div class="learning-summary-note">均分 {{ learning_summary.weekly_avg_score|floatformat:0 }}</div>
+                </div>
+                <div class="learning-summary-card">
+                    <div class="learning-summary-label">薄弱点</div>
+                    <div class="learning-summary-value">{{ learning_summary.focus_count }}</div>
+                    <div class="learning-summary-note">待回看 {{ learning_summary.focus_count }} / 已归档 {{ learning_summary.archived_focus_count }}</div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="learning-grid">
+        <div class="learning-panel">
+            <div class="learning-panel-header">
+                <span class="learning-panel-kicker">Continue</span>
+                <div class="learning-panel-title">继续学习</div>
+                <div class="learning-panel-copy">从最近任务开始。</div>
+            </div>
+            <div class="learning-card-stack">
+                {% for item in continue_learning %}
+                    <article class="learning-card">
+                        <div class="learning-card-top">
+                            <div>
+                                <div class="learning-card-title">{{ item.course.title }}</div>
+                                <div class="learning-card-subtitle">{% if item.material %}{{ item.material.title }}{% else %}等待教师添加资料{% endif %}</div>
+                            </div>
+                            <span class="learning-chip">{{ item.difficulty_stage }}</span>
+                        </div>
+                        <div class="learning-card-meta">
+                            <span>{{ item.updated_at|date:"m月d日 H:i" }}</span>
+                            {% if item.score is not None %}<span>得分 {{ item.score|floatformat:0 }}</span>{% endif %}
+                            {% if item.review_page %}<span>回看第 {{ item.review_page }} 页</span>{% endif %}
+                        </div>
+                        <div class="learning-card-actions">
+                            <a href="{{ item.continue_url }}" class="learning-card-action primary">继续</a>
+                        </div>
+                    </article>
+                {% empty %}
+                    <div class="learning-empty">还没有最近学习记录，先从一门课程开始。</div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <div class="learning-panel">
+            <div class="learning-panel-header">
+                <span class="learning-panel-kicker">Review</span>
+                <div class="learning-panel-title">回顾薄弱点</div>
+                <div class="learning-panel-copy">先处理最该回看的点。</div>
+            </div>
+            <div class="learning-card-stack">
+                {% for area in weak_areas %}
+                    <article class="learning-focus-card">
+                        <strong>{{ area.knowledge_tag }}</strong>
+                        <p>{{ area.course_title }} · {{ area.material_title }}{% if area.source_page %} · 第 {{ area.source_page }} 页{% endif %}</p>
+                        <div class="learning-archive-meta">连续错题 {{ area.consecutive_wrong_count }} 次 · 累计错误 {{ area.wrong_count }} 次</div>
+                        <div class="learning-card-actions">
+                            <a href="{{ area.target_url }}" class="learning-card-action process">去回看</a>
+                        </div>
+                    </article>
+                {% empty %}
+                    <div class="learning-empty">当前还没有明显薄弱点。</div>
+                {% endfor %}
+            </div>
+        </div>
+    </section>
+
+
+
+    <section class="learning-grid">
+        <div class="learning-panel">
+            <div class="learning-panel-header">
+                <span class="learning-panel-kicker">Quick Start</span>
+                <div class="learning-panel-title">开始</div>
+                <div class="learning-panel-copy">常用入口。</div>
+            </div>
+            <div class="learning-route-grid">
+                <a href="{% if continue_learning %}{{ continue_learning.0.continue_url }}{% else %}{% url 'course_library' %}{% endif %}" class="learning-route-card">
+                    <span class="learning-route-icon"><i class="fas fa-play"></i></span>
+                    <span>
+                        <div class="learning-route-title">继续当前课程</div>
+                        <div class="learning-route-copy">从上次中断处继续。</div>
+                    </span>
+                    <i class="fas fa-arrow-right learning-route-arrow"></i>
+                </a>
+                <a href="{% if weak_areas %}{{ weak_areas.0.target_url }}{% else %}{% url 'detailed_profile' %}{% endif %}" class="learning-route-card">
+                    <span class="learning-route-icon"><i class="fas fa-bullseye"></i></span>
+                    <span>
+                        <div class="learning-route-title">回看薄弱点</div>
+                        <div class="learning-route-copy">先处理当前薄弱点。</div>
+                    </span>
+                    <i class="fas fa-arrow-right learning-route-arrow"></i>
+                </a>
+                <a href="{% url 'chat_interface' %}" class="learning-route-card">
+                    <span class="learning-route-icon"><i class="fas fa-robot"></i></span>
+                    <span>
+                        <div class="learning-route-title">让 AI 帮你规划</div>
+                        <div class="learning-route-copy">让 AI 帮你定顺序。</div>
+                    </span>
+                    <i class="fas fa-arrow-right learning-route-arrow"></i>
+                </a>
+            </div>
+        </div>
+
+        <div class="learning-panel">
+            <div class="learning-panel-header">
+                <span class="learning-panel-kicker">Browse</span>
+                <div class="learning-panel-title">课程浏览</div>
+                <div class="learning-panel-copy">按课程进入。</div>
+            </div>
+            <div class="learning-course-grid">
+                {% for item in featured_courses %}
+                    <article class="learning-course-card">
+                        <div class="learning-course-top">
+                            <div>
+                                <div class="learning-card-title">{{ item.course.title }}</div>
+                                <div class="learning-card-subtitle">{{ item.course.summary|default:item.course.description|default:'暂无课程简介'|truncatechars:36 }}</div>
+                            </div>
+                            <span class="learning-chip warm">{{ item.material_count }} 份</span>
+                        </div>
+                        <div class="learning-card-meta">
+                            <span>{{ item.course.owner.username }}</span>
+                            {% if item.latest_score is not None %}<span>得分 {{ item.latest_score|floatformat:0 }}</span>{% endif %}
+                        </div>
+                        <div class="learning-card-actions">
+                            <a href="{{ item.study_url }}" class="learning-card-action browse">进入学习</a>
+                        </div>
+                    </article>
+                {% empty %}
+                    <div class="learning-empty">还没有已发布课程。</div>
+                {% endfor %}
+            </div>
+        </div>
+    </section>
+</div>
+{% endblock %}

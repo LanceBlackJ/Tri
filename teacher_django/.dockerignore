@@ -1,0 +1,28 @@
+# 构建上下文 = teacher_django/。以下不进镜像：
+# .env：关键！镜像若带上开发用 .env，会覆盖 compose 注入的容器环境变量
+.env
+.env.*
+
+# 虚拟环境 / 缓存
+.venv
+venv
+env
+__pycache__
+*.pyc
+.pytest_cache
+
+# 运行时数据（容器用 MySQL/持久卷，不需要这些）
+data
+*.db
+*.db-wal
+*.db-shm
+media
+staticfiles
+
+# 数据迁移导出（体积大，改用 docker compose cp + loaddata 一次性导入）
+datadump.json
+*.dumpdata.json
+
+.git
+.DS_Store
+Thumbs.db

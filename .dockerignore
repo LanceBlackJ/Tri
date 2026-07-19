@@ -1,0 +1,13 @@
+venv
+env
+.venv
+.env
+__pycache__
+*.pyc
+.pytest_cache
+.git
+data
+media
+staticfiles
+node_modules
+.DS_Store

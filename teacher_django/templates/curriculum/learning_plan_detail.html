@@ -1,0 +1,194 @@
+{% extends 'base.html' %}
+
+{% block title %}学习路径详情 - Tri{% endblock %}
+{% block page_title %}学习路径{% endblock %}
+{% block page_description %}你的个性化学习计划{% endblock %}
+
+{% block content %}
+<div class="mx-auto max-w-5xl space-y-8 px-4 py-6">
+    <div class="flex flex-col gap-4 rounded-3xl bg-slate-900 px-6 py-8 text-white shadow-xl md:flex-row md:items-end md:justify-between">
+        <div class="max-w-3xl">
+            <div class="text-xs uppercase tracking-[0.25em] text-slate-300">Personalized roadmap</div>
+            <h1 class="mt-3 text-3xl font-bold leading-tight">{{ plan_data.title|default:plan.title }}</h1>
+            {% if plan_data.description %}
+                <p class="mt-3 text-sm leading-7 text-slate-200">{{ plan_data.description }}</p>
+            {% endif %}
+        </div>
+        <div class="rounded-2xl bg-white/10 px-5 py-4 text-sm text-slate-100">
+            <div>状态：{{ plan.get_status_display }}</div>
+            <div class="mt-1">更新时间：{{ plan.updated_at|date:"Y-m-d H:i" }}</div>
+        </div>
+    </div>
+
+    <div class="flex flex-wrap items-center gap-3 rounded-3xl border border-slate-200 bg-white px-5 py-4 shadow-sm">
+        <div class="text-sm text-slate-600">如果最近小测结果或薄弱点发生变化，可以直接基于当前状态重排这份路径。</div>
+        <form method="post" action="{% url 'refresh_learning_plan' plan.id %}">
+            {% csrf_token %}
+            <button type="submit" class="inline-flex items-center rounded-full bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-700">
+                按当前薄弱点重排
+            </button>
+        </form>
+    </div>
+
+    <div class="grid gap-6 lg:grid-cols-[1.5fr_1fr]">
+        <section class="space-y-6">
+            {% if recommendation_reason %}
+                <div class="rounded-3xl border border-amber-200 bg-amber-50 p-6">
+                    <h2 class="text-lg font-semibold text-amber-950">推荐依据</h2>
+                    <ul class="mt-4 space-y-2 text-sm leading-7 text-amber-900">
+                        {% for reason in recommendation_reason %}
+                            <li>• {{ reason }}</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            {% endif %}
+
+            <div class="space-y-4">
+                <div class="flex items-center justify-between gap-4">
+                    <h2 class="text-xl font-semibold text-slate-900">分阶段学习安排</h2>
+                    <a href="{% url 'learning_progress' %}" class="text-sm font-medium text-slate-500 hover:text-slate-900">返回学习进度</a>
+                </div>
+                {% for module in modules %}
+                    <article class="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+                        <div class="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                            <div>
+                                <h3 class="text-lg font-semibold text-slate-900">{{ module.name }}</h3>
+                                {% if module.focus %}
+                                    <p class="mt-2 text-sm leading-7 text-slate-600">{{ module.focus }}</p>
+                                {% endif %}
+                            </div>
+                            {% if module.estimated_hours %}
+                                <div class="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600">{{ module.estimated_hours }} 小时</div>
+                            {% endif %}
+                        </div>
+
+                        {% if module.lessons %}
+                            <div class="mt-5 grid gap-4 md:grid-cols-2">
+                                {% for lesson in module.lessons %}
+                                    <div class="rounded-2xl bg-slate-50 p-4">
+                                        <div class="text-sm font-semibold text-slate-900">{{ lesson.title }}</div>
+                                        {% if lesson.objectives %}
+                                            <p class="mt-2 text-sm leading-7 text-slate-600">{{ lesson.objectives }}</p>
+                                        {% endif %}
+                                        {% if lesson.anchor_match %}
+                                            <div class="mt-3 rounded-2xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-medium text-emerald-800">
+                                                推荐定位：{{ lesson.anchor_match.match_label }}
+                                            </div>
+                                        {% endif %}
+                                        {% if lesson.resources %}
+                                            <div class="mt-3 flex flex-wrap gap-2">
+                                                {% for resource in lesson.resources %}
+                                                    <span class="rounded-full bg-white px-3 py-1 text-xs font-medium text-slate-500 ring-1 ring-slate-200">{{ resource }}</span>
+                                                {% endfor %}
+                                            </div>
+                                        {% endif %}
+                                        {% if lesson.actions %}
+                                            <div class="mt-4 flex flex-wrap gap-2">
+                                                {% for action in lesson.actions %}
+                                                    <a href="{{ action.url }}" class="inline-flex items-center rounded-full bg-slate-900 px-3 py-2 text-xs font-semibold text-white transition hover:bg-slate-700">
+                                                        {{ action.label }}
+                                                    </a>
+                                                {% endfor %}
+                                            </div>
+                                        {% endif %}
+                                    </div>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    </article>
+                {% empty %}
+                    <div class="rounded-3xl border border-dashed border-slate-300 bg-slate-50 p-8 text-sm text-slate-500">
+                        这条学习路径还没有生成阶段内容，可以返回重新生成一份路线。
+                    </div>
+                {% endfor %}
+            </div>
+        </section>
+
+        <aside class="space-y-6">
+            {% if plan_data.profile_summary %}
+                <section class="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+                    <h2 class="text-lg font-semibold text-slate-900">画像摘要</h2>
+                    <dl class="mt-4 space-y-3 text-sm text-slate-600">
+                        <div>
+                            <dt class="font-medium text-slate-900">画像来源</dt>
+                            <dd class="mt-1">{{ plan_data.profile_summary.source|default:'未识别' }}</dd>
+                        </div>
+                        <div>
+                            <dt class="font-medium text-slate-900">偏好模式</dt>
+                            <dd class="mt-1">{{ plan_data.profile_summary.preferred_mode|default:'讲练结合' }}</dd>
+                        </div>
+                        {% if plan_data.profile_summary.engagement_score %}
+                            <div>
+                                <dt class="font-medium text-slate-900">参与度</dt>
+                                <dd class="mt-1">{{ plan_data.profile_summary.engagement_score }}</dd>
+                            </div>
+                        {% endif %}
+                    </dl>
+                </section>
+            {% endif %}
+
+            {% if plan_data.matched_course %}
+                <section class="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+                    <h2 class="text-lg font-semibold text-slate-900">关联课程资料</h2>
+                    <div class="mt-4 text-sm text-slate-600">
+                        <div class="font-medium text-slate-900">{{ plan_data.matched_course.title }}</div>
+                        {% if plan_data.matched_course.summary %}
+                            <p class="mt-2 leading-7">{{ plan_data.matched_course.summary }}</p>
+                        {% endif %}
+                        {% if plan_data.matched_course.topics %}
+                            <div class="mt-3 flex flex-wrap gap-2">
+                                {% for topic in plan_data.matched_course.topics|slice:":6" %}
+                                    <span class="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-600">{{ topic }}</span>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+                    {% if course_actions %}
+                        <div class="mt-5 grid gap-3">
+                            {% for action in course_actions %}
+                                <a href="{{ action.url }}" class="inline-flex items-center justify-center rounded-2xl bg-slate-900 px-4 py-3 text-sm font-semibold text-white transition hover:bg-slate-700">
+                                    {{ action.label }}
+                                </a>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                </section>
+            {% endif %}
+
+            {% if weak_areas %}
+                <section class="rounded-3xl border border-rose-200 bg-rose-50 p-6 shadow-sm">
+                    <h2 class="text-lg font-semibold text-rose-950">当前薄弱点</h2>
+                    <div class="mt-4 flex flex-wrap gap-2">
+                        {% for item in weak_areas %}
+                            <span class="rounded-full bg-white px-3 py-1 text-xs font-medium text-rose-700 ring-1 ring-rose-200">{{ item }}</span>
+                        {% endfor %}
+                    </div>
+                </section>
+            {% endif %}
+
+            {% if recent_progress %}
+                <section class="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+                    <h2 class="text-lg font-semibold text-slate-900">最近学习状态</h2>
+                    <div class="mt-4 space-y-3">
+                        {% for progress in recent_progress %}
+                            <div class="rounded-2xl bg-slate-50 p-4 text-sm text-slate-600">
+                                <div class="flex items-start justify-between gap-3">
+                                    <div class="font-medium text-slate-900">{{ progress.outline_title }}</div>
+                                    {% if progress.outline_url %}
+                                        <a href="{{ progress.outline_url }}" class="text-xs font-semibold text-slate-500 hover:text-slate-900">继续课件</a>
+                                    {% endif %}
+                                </div>
+                                <div class="mt-1">章节：{{ progress.chapter_id }}</div>
+                                <div class="mt-1">状态：{{ progress.status }}</div>
+                                {% if progress.quiz_score %}
+                                    <div class="mt-1">测验得分：{{ progress.quiz_score }}</div>
+                                {% endif %}
+                            </div>
+                        {% endfor %}
+                    </div>
+                </section>
+            {% endif %}
+        </aside>
+    </div>
+</div>
+{% endblock %}

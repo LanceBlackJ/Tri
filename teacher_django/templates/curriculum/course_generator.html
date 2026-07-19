@@ -1,0 +1,1100 @@
+{% extends 'base.html' %}
+
+{% block title %}AI课程生成器 - Tri{% endblock %}
+{% block page_title %}AI 课件{% endblock %}
+{% block page_description %}输入主题，一键生成整套课件{% endblock %}
+
+{% block extra_css %}
+<style>
+    .generator-hub {
+        display: flex;
+        flex-direction: column;
+        gap: 1.8rem;
+        background: #f8fafc;
+        min-height: calc(100vh - 140px);
+        padding-bottom: 2rem;
+    }
+
+    .form-group {
+        margin-bottom: 1.8rem;
+    }
+
+    .form-label {
+        display: block;
+        font-size: 0.85rem;
+        font-weight: 600;
+        color: #1e293b;
+        margin-bottom: 0.55rem;
+    }
+
+    .form-input {
+        width: 100%;
+        padding: 0.85rem 1rem;
+        border: 2px solid #cbd5e1;
+        border-radius: 14px;
+        font-size: 0.92rem;
+        color: #1e293b;
+        background: #ffffff;
+        transition: all 0.2s ease;
+        font-family: inherit;
+        box-sizing: border-box;
+    }
+
+    .form-input:focus {
+        outline: none;
+        border-color: #3b82f6;
+        background: white;
+        box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.12);
+    }
+
+    .form-input::placeholder {
+        color: #64748b;
+    }
+
+    .form-textarea {
+        width: 100%;
+        padding: 0.85rem 1rem;
+        border: 2px solid #cbd5e1;
+        border-radius: 14px;
+        font-size: 0.92rem;
+        color: #1e293b;
+        background: #ffffff;
+        transition: all 0.2s ease;
+        font-family: inherit;
+        resize: vertical;
+        min-height: 140px;
+        line-height: 1.5;
+        box-sizing: border-box;
+    }
+
+    .form-textarea:focus {
+        outline: none;
+        border-color: #3b82f6;
+        background: white;
+        box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.12);
+    }
+
+    .form-textarea::placeholder {
+        color: #64748b;
+    }
+
+    .form-options {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.85rem;
+        margin-top: 0.8rem;
+    }
+
+    .option-item {
+        display: flex;
+        align-items: center;
+        gap: 0.55rem;
+        padding: 0.75rem 1rem;
+        border-radius: 14px;
+        background: #f8fafc;
+        border: 2px solid #e2e8f0;
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+
+    .option-item:hover {
+        background: #f1f5f9;
+        border-color: #cbd5e1;
+    }
+
+    .option-item input[type="checkbox"] {
+        width: 17px;
+        height: 17px;
+        border-radius: 5px;
+        cursor: pointer;
+    }
+
+    .option-icon {
+        width: 26px;
+        height: 26px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 10px;
+        background: rgba(59, 130, 246, 0.1);
+        color: #3b82f6;
+        font-size: 0.8rem;
+    }
+
+    .option-text {
+        font-size: 0.82rem;
+        color: #1e293b;
+        font-weight: 500;
+    }
+
+    .option-item:has(input:checked) {
+        background: #e8f1fb;
+        border-color: #3b82f6;
+    }
+
+    .option-item:has(input:checked) .option-icon {
+        background: #3b82f6;
+        color: #fff;
+    }
+
+    .generator-button {
+        width: 100%;
+        padding: 1.1rem;
+        border-radius: 14px;
+        font-size: 0.95rem;
+        font-weight: 700;
+        color: white;
+        background: linear-gradient(135deg, #3b82f6, #12568a);
+        border: none;
+        cursor: pointer;
+        transition: all 0.25s ease;
+        box-shadow: 0 12px 28px rgba(59, 130, 246, 0.35);
+        margin-top: 2rem;
+    }
+
+    .generator-button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 16px 34px rgba(59, 130, 246, 0.4);
+    }
+
+    .generator-button:active {
+        transform: translateY(0);
+    }
+
+    .generator-button:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+        transform: none;
+    }
+
+    .progress-section {
+        margin-top: 1.5rem;
+        padding-top: 1.5rem;
+        border-top: 1px solid #f1f5f9;
+        display: none;
+    }
+
+    .progress-section.active {
+        display: block;
+    }
+
+    .progress-bar-container {
+        height: 10px;
+        background: #e2e8f0;
+        border-radius: 999px;
+        overflow: hidden;
+        margin-bottom: 0.8rem;
+    }
+
+    .progress-bar {
+        height: 100%;
+        background: linear-gradient(90deg, #3b82f6, #3b82f6);
+        border-radius: 999px;
+        transition: width 0.3s ease;
+    }
+
+    .progress-text {
+        font-size: 0.82rem;
+        color: #64748b;
+        text-align: center;
+    }
+
+    .resource-items {
+        margin-top: 1rem;
+        display: flex;
+        flex-direction: column;
+        gap: 0.55rem;
+    }
+
+    .resource-item {
+        padding: 0.7rem 1rem;
+        background: #f8fafc;
+        border-radius: 12px;
+        font-size: 0.85rem;
+        color: #3b82f6;
+    }
+
+    .resource-item.done {
+        background: #dbeafe;
+        color: #0e4470;
+    }
+
+    .feature-card {
+        padding: 1.4rem;
+        border-radius: 22px;
+        background: #ffffff;
+        border: 1px solid #e2e8f0;
+        transition: all 0.2s ease;
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .feature-card:hover {
+        box-shadow: 0 6px 20px rgba(15, 23, 42, 0.08);
+        transform: translateY(-2px);
+    }
+
+    .feature-icon {
+        width: 48px;
+        height: 48px;
+        border-radius: 16px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #fff;
+        font-size: 1.2rem;
+        margin-bottom: 1rem;
+    }
+
+    .feature-title {
+        font-size: 0.96rem;
+        font-weight: 600;
+        color: #1e293b;
+        margin-bottom: 0.45rem;
+    }
+
+    .feature-desc {
+        font-size: 0.85rem;
+        color: #475569;
+        line-height: 1.55;
+        flex: 1;
+    }
+
+    .generator-divider {
+        display: flex;
+        align-items: center;
+        gap: 1.3rem;
+        margin: 0.5rem 0;
+    }
+
+    .generator-divider-line {
+        flex: 1;
+        height: 1px;
+        background: #e2e8f0;
+    }
+
+    .generator-divider-text {
+        font-size: 0.78rem;
+        color: #475569;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+    }
+
+    .generator-course-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(330px, 1fr));
+        gap: 1.2rem;
+    }
+
+    .generator-course-card {
+        background: #ffffff;
+        border-radius: 22px;
+        border: 1px solid #e2e8f0;
+        padding: 1.5rem;
+        transition: all 0.25s ease;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .generator-course-card:hover {
+        border-color: #cbd5e1;
+        box-shadow: 0 8px 28px rgba(15, 23, 42, 0.08);
+        transform: translateY(-3px);
+    }
+
+    .course-card-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        margin-bottom: 1rem;
+    }
+
+    .generator-course-checkbox {
+        width: 18px;
+        height: 18px;
+        border-radius: 6px;
+        cursor: pointer;
+    }
+
+    .generator-course-status {
+        display: inline-block;
+        padding: 0.3rem 0.7rem;
+        border-radius: 999px;
+        font-size: 0.7rem;
+        font-weight: 600;
+    }
+
+    .generator-course-status.completed {
+        background: #dbeafe;
+        color: #0e4470;
+    }
+
+    .generator-course-status.generating {
+        background: #e8f1fb;
+        color: #12568a;
+    }
+
+    .generator-course-status.pending {
+        background: #e0e7ff;
+        color: #3b82f6;
+    }
+
+    .course-card-title {
+        font-size: 1rem;
+        font-weight: 700;
+        color: #1e293b;
+        margin-bottom: 0.55rem;
+        display: block;
+        line-height: 1.4;
+        text-decoration: none;
+    }
+
+    .course-card-title:hover {
+        color: #3b82f6;
+    }
+
+    .course-card-desc {
+        font-size: 0.82rem;
+        color: #475569;
+        line-height: 1.5;
+        margin-bottom: 1.1rem;
+        flex: 1;
+    }
+
+    .course-card-meta {
+        font-size: 0.78rem;
+        color: #64748b;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 1rem;
+        align-items: center;
+        margin-bottom: 1.2rem;
+        padding-bottom: 1.2rem;
+        border-bottom: 1px solid #e2e8f0;
+    }
+
+    .course-meta-item {
+        display: flex;
+        align-items: center;
+        gap: 0.35rem;
+    }
+
+    .course-card-actions {
+        display: flex;
+        gap: 0.6rem;
+    }
+
+    .generator-course-action {
+        flex: 1;
+        padding: 0.6rem 0.9rem;
+        border-radius: 11px;
+        font-size: 0.78rem;
+        font-weight: 600;
+        text-decoration: none;
+        text-align: center;
+        transition: all 0.18s ease;
+    }
+
+    .generator-course-action.view {
+        background: linear-gradient(135deg, #12568a 0%, #2f6fb0 100%);
+        color: white;
+    }
+
+    .generator-course-action.view:hover {
+        filter: brightness(1.06);
+    }
+
+    .generator-course-action.delete {
+        background: #fef2f2;
+        color: #dc2626;
+        border: none;
+        cursor: pointer;
+    }
+
+    .generator-course-action.delete:hover {
+        background: #fee2e2;
+    }
+
+    .generator-empty {
+        text-align: center;
+        padding: 4rem 2rem;
+        background: #ffffff;
+        border-radius: 22px;
+        border: 2px dashed #cbd5e1;
+    }
+
+    .generator-empty-icon {
+        width: 80px;
+        height: 80px;
+        margin: 0 auto 1.3rem;
+        border-radius: 20px;
+        background: #f1f5f9;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.8rem;
+        color: #94a3b8;
+    }
+
+    .generator-empty-title {
+        font-size: 1.2rem;
+        font-weight: 600;
+        color: #1e293b;
+        margin-bottom: 0.5rem;
+    }
+
+    .generator-empty-text {
+        font-size: 0.9rem;
+        color: #64748b;
+        margin-bottom: 1.3rem;
+    }
+
+    .generator-empty-examples {
+        display: flex;
+        justify-content: center;
+        flex-wrap: wrap;
+        gap: 0.6rem;
+    }
+
+    .example-tag {
+        padding: 0.45rem 1rem;
+        border-radius: 25px;
+        font-size: 0.76rem;
+        background: #f1f5f9;
+        color: #475569;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        border: 1px solid #e2e8f0;
+    }
+
+    .example-tag:hover {
+        background: #e2e8f0;
+        color: #1e293b;
+    }
+
+    .bulk-bar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+        padding: 1rem 1.3rem;
+        background: #fff;
+        border-radius: 16px;
+        border: 1px solid #e2e8f0;
+    }
+
+    .bulk-left {
+        display: flex;
+        align-items: center;
+        gap: 0.9rem;
+    }
+
+    .bulk-select-all {
+        display: flex;
+        align-items: center;
+        gap: 0.4rem;
+        font-size: 0.82rem;
+        color: #1e293b;
+        cursor: pointer;
+    }
+
+    .bulk-count {
+        font-size: 0.78rem;
+        color: #64748b;
+    }
+
+    .bulk-delete {
+        padding: 0.55rem 1.1rem;
+        border-radius: 11px;
+        font-size: 0.78rem;
+        font-weight: 600;
+        background: #fee2e2;
+        color: #dc2626;
+        border: none;
+        cursor: pointer;
+    }
+
+    .bulk-delete:hover:not(:disabled) {
+        background: #fecaca;
+    }
+
+    .bulk-delete:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+
+    @media (max-width: 640px) {
+
+        .generator-course-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    /* ============ 紧凑化 + 精简留白（美化 pass，覆盖上面的宽松间距）============ */
+    .generator-hub { gap: 1.5rem; min-height: auto; padding-bottom: 0.5rem; background: transparent; }
+    .form-group { margin-bottom: 1.4rem; }
+    .form-label { margin-bottom: 0.5rem; }
+    .form-input, .form-textarea { padding: 0.8rem 1rem; border-radius: 12px; border-width: 1.5px; font-size: 0.92rem; }
+    .form-textarea { min-height: 110px; }
+    .form-options { gap: 0.7rem; margin-top: 0.65rem; }
+    .option-item { padding: 0.65rem 0.95rem; border-radius: 12px; border-width: 1.5px; gap: 0.55rem; }
+    .option-icon { width: 26px; height: 26px; }
+    .generator-button { margin-top: 1.5rem; padding: 0.95rem; border-radius: 12px; box-shadow: 0 10px 24px rgba(59, 130, 246,.28); }
+    .feature-card { padding: 0.9rem 1.05rem; border-radius: 13px; }
+    .feature-icon { width: 36px; height: 36px; border-radius: 11px; font-size: 0.9rem; margin-bottom: 0.55rem; }
+    .feature-title { font-size: 0.88rem; margin-bottom: 0.2rem; }
+    .feature-desc { font-size: 0.79rem; line-height: 1.45; }
+    .generator-divider { margin: 0.1rem 0; gap: 1rem; }
+    .generator-course-grid { gap: 0.85rem; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); }
+    .generator-course-card { border-radius: 16px; padding: 1.4rem 1.45rem; }
+    .course-card-header { margin-bottom: 0.9rem; }
+    .course-card-title { font-size: 1rem; margin-bottom: 0.45rem; }
+    .course-card-desc { font-size: 0.83rem; margin-bottom: 0.9rem; line-height: 1.55; }
+    .course-card-meta { margin-bottom: 1rem; padding-bottom: 1rem; }
+    .course-card-actions { gap: 0.6rem; }
+    .generator-course-action { padding: 0.58rem 0.9rem; border-radius: 10px; }
+    .generator-empty { padding: 2.4rem 1.5rem; border-radius: 16px; }
+    .generator-empty-icon { width: 56px; height: 56px; border-radius: 15px; font-size: 1.4rem; margin: 0 auto 0.85rem; }
+    .generator-empty-title { font-size: 1.05rem; margin-bottom: 0.35rem; }
+    .generator-empty-text { font-size: 0.85rem; margin-bottom: 0.9rem; }
+    .bulk-bar { padding: 0.8rem 1.15rem; border-radius: 14px; margin-bottom: 1.15rem; }
+    @media (max-width: 640px) { .generator-course-grid { grid-template-columns: 1fr; } }
+
+    /* ============ 顶部 Hero（照 teacher/courses 的白底 studio 版式：白卡 + 深色衬线标题 + 右侧统计卡）============ */
+    .gen-topbar {
+        display: grid;
+        grid-template-columns: minmax(0, 1.45fr) minmax(240px, 0.85fr);
+        gap: 1.2rem 1.6rem;
+        align-items: start;
+        border-radius: 26px;
+        padding: 2rem 2.1rem;
+        background: #ffffff;
+        border: 1px solid #e3e8ee;
+        box-shadow: 0 18px 40px rgba(15, 23, 42, 0.05);
+    }
+    .gen-topbar-left { min-width: 0; }
+    .gen-kicker { display: inline-flex; align-items: center; gap: 0.45rem; padding: 0.34rem 0.72rem; border-radius: 999px; background: #eef2f6; color: #475569; font-size: 0.72rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; }
+    .gen-h1 { margin-top: 1rem; font-family: 'Noto Serif SC', 'Songti SC', serif; font-size: clamp(1.6rem, 2.9vw, 2.35rem); line-height: 1.2; font-weight: 700; letter-spacing: -0.02em; color: #0f172a; }
+    .gen-h1-sub { margin-top: 0.7rem; max-width: 34rem; font-size: 0.9rem; line-height: 1.65; color: #55606b; }
+    .gen-stat-grid { display: grid; gap: 0.8rem; }
+    .gen-stat-card { border-radius: 16px; padding: 1rem 1.15rem; background: #ffffff; border: 1px solid #e3e8ee; }
+    .gen-stat-label { font-size: 0.72rem; letter-spacing: 0.08em; text-transform: uppercase; color: #55606b; }
+    .gen-stat-value { margin-top: 0.3rem; font-size: 1.5rem; font-weight: 800; color: #1f2328; line-height: 1.1; }
+    .gen-stat-note { margin-top: 0.25rem; font-size: 0.78rem; color: #55606b; }
+    @media (max-width: 860px) { .gen-topbar { grid-template-columns: 1fr; } }
+
+    .gen-layout { display: grid; grid-template-columns: 400px minmax(0, 1fr); gap: 1.8rem; align-items: start; }
+    .gen-aside { position: sticky; top: 1.25rem; }
+    .gen-main { min-width: 0; }
+
+    .gen-card { position: relative; overflow: hidden; background: #ffffff; border: 1px solid #e6e9f0; border-radius: 18px; padding: 1.7rem 1.75rem 1.9rem; box-shadow: 0 12px 34px rgba(15, 23, 42, 0.07); }
+    .gen-card::before { display: none; }
+    .gen-card-head { display: flex; align-items: center; gap: 0.85rem; margin-bottom: 1.5rem; }
+    .gen-card-icon { flex: 0 0 auto; width: 42px; height: 42px; border-radius: 13px; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 1.05rem; background: linear-gradient(135deg, #3b82f6, #12568a); box-shadow: 0 8px 18px rgba(59, 130, 246, 0.3); }
+    .gen-card-title { font-size: 1.12rem; font-weight: 800; color: #0f172a; line-height: 1.2; }
+    .gen-card-sub { font-size: 0.82rem; color: #64748b; margin-top: 0.2rem; line-height: 1.45; }
+    .gen-auto-note { display: flex; align-items: flex-start; gap: 0.6rem; margin: 0.2rem 0 1.5rem; padding: 0.75rem 0.9rem; border-radius: 12px; background: #f3f5ff; border: 1px solid #e0e4fb; font-size: 0.82rem; line-height: 1.55; color: #475569; }
+    .gen-auto-note i { color: #3b82f6; margin-top: 0.15rem; flex: 0 0 auto; }
+    .gen-auto-note b { color: #0e4470; font-weight: 700; }
+
+    .gen-section-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.25rem; }
+    .gen-section-title { font-size: 1.15rem; font-weight: 800; color: #1e293b; letter-spacing: -0.01em; }
+    .gen-section-title::before { content: ''; display: inline-block; width: 4px; height: 1.1rem; border-radius: 999px; background: linear-gradient(180deg, #3b82f6, #3b82f6); margin-right: 0.6rem; vertical-align: -2px; }
+
+    /* 课程网格铺满右侧列（舒适密度：卡片更大、间距更松）*/
+    .gen-main .generator-course-grid { grid-template-columns: repeat(auto-fill, minmax(278px, 1fr)); gap: 1.15rem; }
+
+    @media (max-width: 1024px) {
+        .gen-layout { grid-template-columns: 1fr; }
+        .gen-aside { position: static; }
+    }
+    @media (max-width: 640px) {
+        .gen-card { padding: 1.25rem 1.15rem 1.4rem; }
+        .gen-main .generator-course-grid { grid-template-columns: 1fr; }
+    }
+
+    /* ============ 尖角化（去掉大圆角）+ 我的课程做成白底面板 ============ */
+    .gen-topbar,
+    .gen-stat-card,
+    .gen-card,
+    .gen-main,
+    .generator-course-card,
+    .generator-empty,
+    .bulk-bar { border-radius: 8px; }
+    .form-input,
+    .form-textarea,
+    .generator-button,
+    .gen-auto-note,
+    .generator-course-action,
+    .generator-course-status,
+    .example-tag,
+    .gen-kicker { border-radius: 6px; }
+
+    /* 我的课程：白底面板，和左侧生成卡一致 */
+    .gen-main {
+        background: #ffffff;
+        border: 1px solid #e3e8ee;
+        padding: 1.4rem 1.5rem 1.6rem;
+        box-shadow: 0 18px 40px rgba(15, 23, 42, 0.05);
+    }
+    .gen-main .generator-course-card { box-shadow: none; }
+    .gen-main .bulk-bar { box-shadow: none; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="generator-hub">
+    <!-- 顶部 Hero -->
+    <div class="gen-topbar">
+        <div class="gen-topbar-left">
+            <span class="gen-kicker"><i class="fas fa-layer-group"></i> AI Course Studio</span>
+            <h1 class="gen-h1">输入一个主题，AI 帮你生成整套课件。</h1>
+            <p class="gen-h1-sub">PPT 课件、动画演示、练习题一次生成——由 AI 按内容自动判断该配什么，不硬加。</p>
+        </div>
+        <div class="gen-stat-grid">
+            <div class="gen-stat-card">
+                <div class="gen-stat-label">课程总数</div>
+                <div class="gen-stat-value">{{ outlines|length }}</div>
+                <div class="gen-stat-note">你已生成的课程</div>
+            </div>
+            <div class="gen-stat-card">
+                <div class="gen-stat-label">生成内容</div>
+                <div class="gen-stat-value">6 类</div>
+                <div class="gen-stat-note">PPT · 动画 · 题 · 讲义 · 导图 · 阅读</div>
+            </div>
+            <div class="gen-stat-card">
+                <div class="gen-stat-label">下一步</div>
+                <div class="gen-stat-value">生成</div>
+                <div class="gen-stat-note">在下方输入主题开始</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 双栏仪表盘：左生成表单 · 右我的课程 -->
+    <div class="gen-layout">
+        <aside class="gen-aside">
+        <div class="gen-card">
+            <div class="gen-card-head">
+                <div class="gen-card-icon"><i class="fas fa-wand-magic-sparkles"></i></div>
+                <div class="gen-card-headtext">
+                    <h2 class="gen-card-title">生成新课程</h2>
+                    <p class="gen-card-sub">用一句话描述你想学习的内容</p>
+                </div>
+            </div>
+            <form method="post" id="generateForm" class="gen-form">
+                            {% csrf_token %}
+                            <div class="form-group">
+                                <label for="topic" class="form-label">学习主题</label>
+                                <input type="text" id="topic" name="topic" required
+                                       class="form-input"
+                                       placeholder="例如：计算机组成原理中的总线、机器学习里的梯度下降">
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="description" class="form-label">学习目标与基础（可选）</label>
+                                <textarea id="description" name="description" rows="4"
+                                          class="form-textarea"
+                                          placeholder="例如：我没有基础，希望用 20 分钟听懂概念，并配一个动态演示，包含代码示例和练习题"></textarea>
+                            </div>
+
+                            <div class="gen-auto-note">
+                                <i class="fas fa-wand-magic-sparkles"></i>
+                                <span>练习题、动画演示、代码示例由 <b>AI 按内容自动判断</b>是否需要——有些内容不适合做动画，就不会硬加。</span>
+                            </div>
+
+                            <button type="submit" id="generateBtn" class="generator-button">
+                                <span id="btnText">开始生成课程</span>
+                                <span id="btnLoading" style="display:none;">生成中...</span>
+                            </button>
+
+                            <!-- Progress Section -->
+                            <div id="progressSection" class="progress-section">
+                                <div class="progress-bar-container">
+                                    <div id="progressBar" class="progress-bar" style="width:0%"></div>
+                                </div>
+                                <div class="progress-text" id="progressText">正在生成...</div>
+                                <div class="resource-items" id="resourceItems"></div>
+                            </div>
+            </form>
+        </div>
+        </aside>
+
+        <main class="gen-main">
+        <!-- 我的课程 -->
+        <div class="gen-section-head">
+            <h2 class="gen-section-title">我的课程</h2>
+        </div>
+
+        <!-- Course List -->
+        {% if outlines %}
+            <!-- Bulk Actions -->
+            <div class="bulk-bar">
+                <div class="bulk-left">
+                    <label class="bulk-select-all">
+                        <input type="checkbox" id="selectAllOutlines" class="w-3.5 h-3.5">
+                        全选
+                    </label>
+                    <span id="selectedCount" class="bulk-count">已选 0 项</span>
+                </div>
+                <button type="button" id="bulkDeleteBtn" 
+                        class="bulk-delete"
+                        data-url="{% url 'bulk_delete_course_outlines' %}"
+                        disabled>批量删除</button>
+            </div>
+
+            <div class="generator-course-grid">
+                {% for outline in outlines %}
+                    <div class="generator-course-card" id="course-{{ outline.id }}">
+                        <div class="course-card-header">
+                            <input type="checkbox" class="generator-course-checkbox outline-select" 
+                                   value="{{ outline.id }}"
+                                   data-title="{{ outline.title|escapejs }}">
+                            <span class="generator-course-status {{ outline.status }}">
+                                {% if outline.status == 'completed' %}已完成{% elif outline.status == 'generating' %}生成中{% else %}{{ outline.status }}{% endif %}
+                            </span>
+                        </div>
+                        <a href="{% url 'course_outline' outline.id %}" class="course-card-title">{{ outline.title }}</a>
+                        {% if outline.description %}
+                            <p class="course-card-desc">{{ outline.description|truncatewords:15 }}</p>
+                        {% endif %}
+                        <div class="course-card-meta">
+                            <span>{{ outline.created_at|date:"Y-m-d" }}</span>
+                            {% if outline.status == 'completed' %}
+                                <span class="course-meta-item">
+                                    <i class="fas fa-clock"></i>
+                                    {{ outline.estimated_hours|floatformat:1 }}小时
+                                </span>
+                            {% elif outline.status == 'generating' %}
+                                <span class="course-meta-item">
+                                    <i class="fas fa-spinner fa-spin"></i>
+                                    {{ outline.progress|floatformat:0 }}%
+                                </span>
+                            {% endif %}
+                        </div>
+                        <div class="course-card-actions">
+                            <a href="{% url 'course_outline' outline.id %}" class="generator-course-action view">查看详情</a>
+                            <button type="button" class="generator-course-action delete delete-outline-btn"
+                                    data-id="{{ outline.id }}"
+                                    data-title="{{ outline.title|escapejs }}"
+                                    data-url="{% url 'delete_course_outline' outline.id %}">删除</button>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <div class="generator-empty">
+                <div class="generator-empty-icon">
+                    <i class="fas fa-file-text"></i>
+                </div>
+                <div class="generator-empty-title">还没有课程</div>
+                <div class="generator-empty-text">在上方输入学习主题，开始生成你的第一门课程</div>
+                <div class="generator-empty-examples">
+                    <span class="example-tag">计算机组成原理</span>
+                    <span class="example-tag">机器学习入门</span>
+                    <span class="example-tag">Python编程</span>
+                    <span class="example-tag">数据分析</span>
+                </div>
+            </div>
+        {% endif %}
+        </main>
+    </div>
+</div>
+
+<script>
+// Form Submission
+const generateForm = document.getElementById('generateForm');
+const generateBtn = document.getElementById('generateBtn');
+const btnText = document.getElementById('btnText');
+const btnLoading = document.getElementById('btnLoading');
+const progressSection = document.getElementById('progressSection');
+const progressBar = document.getElementById('progressBar');
+const progressText = document.getElementById('progressText');
+const resourceItems = document.getElementById('resourceItems');
+const topicInput = document.getElementById('topic');
+
+// 示例标签：点击把该主题填进输入框并聚焦
+document.querySelectorAll('.example-tag').forEach(function(tag){
+    tag.addEventListener('click', function(){
+        if (topicInput) {
+            topicInput.value = tag.textContent.trim();
+            topicInput.focus();
+            topicInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+    });
+});
+
+// 安全检查：确保所有元素都存在
+if (!generateForm || !generateBtn || !btnText || !btnLoading || !progressSection || !progressBar || !progressText) {
+    console.error('Missing required elements for course generator');
+} else {
+    generateForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    
+    if (!topicInput.value.trim()) return;
+    
+    generateBtn.disabled = true;
+    btnText.style.display = 'none';
+    btnLoading.style.display = 'inline';
+    progressSection.classList.add('active');
+    progressBar.style.width = '0%';
+    progressText.textContent = '正在提交...';
+    
+    const formData = new FormData(generateForm);
+    
+    try {
+        // First, submit the form to create the course outline
+        const response = await fetch('{% url "generate_course" %}', {
+            method: 'POST',
+            body: formData,
+        });
+        
+        const result = await response.json();
+        
+        if (!result.success) {
+            progressText.textContent = `提交失败: ${result.error || '未知错误'}`;
+            generateBtn.disabled = false;
+            btnText.style.display = 'inline';
+            btnLoading.style.display = 'none';
+            return;
+        }
+        
+        // If we have a task_id, connect to SSE stream for progress updates
+        if (result.task_id) {
+            progressText.textContent = '正在生成课程...';
+
+            const eventSource = new EventSource(`{% url 'generate_course_stream' %}?task_id=${result.task_id}`);
+
+            let connectionTimeout = setTimeout(() => {
+                console.warn('SSE connection timeout');
+                eventSource.close();
+                progressText.textContent = '连接超时，课程可能仍在生成中...';
+
+                // Poll for status instead
+                pollCourseStatus(result.outline_id);
+            }, 30000); // 30秒超时
+
+            eventSource.onmessage = (event) => {
+                clearTimeout(connectionTimeout);
+
+                try {
+                    const data = JSON.parse(event.data);
+
+                    if (data.type === 'progress' || data.event === 'progress') {
+                        const progressValue = data.progress || 0;
+                        progressBar.style.width = `${progressValue}%`;
+                        progressText.textContent = data.message || `生成进度: ${progressValue}%`;
+
+                        if (data.resource) {
+                            const resourceItem = document.createElement('div');
+                            resourceItem.className = 'resource-item';
+                            resourceItem.textContent = data.resource;
+                            resourceItems.appendChild(resourceItem);
+                        }
+                    } else if (data.type === 'complete' || data.event === 'completed') {
+                        progressBar.style.width = '100%';
+                        progressText.textContent = '课程生成完成！';
+                        eventSource.close();
+
+                        setTimeout(() => {
+                            window.location.href = `{% url 'course_generator' %}`;
+                        }, 1500);
+                    } else if (data.type === 'error' || data.event === 'error' || data.event === 'failed') {
+                        progressText.textContent = `生成失败: ${data.message || data.error || '请稍后重试'}`;
+                        eventSource.close();
+                        generateBtn.disabled = false;
+                        btnText.style.display = 'inline';
+                        btnLoading.style.display = 'none';
+                    }
+                } catch (e) {
+                    console.error('Failed to parse SSE message:', e);
+                }
+            };
+
+            eventSource.onerror = () => {
+                clearTimeout(connectionTimeout);
+                console.warn('SSE connection error');
+                eventSource.close();
+
+                // Try polling instead
+                progressText.textContent = '连接中断，切换到轮询模式...';
+                pollCourseStatus(result.outline_id);
+            };
+        } else {
+            // No task_id means immediate completion or sync mode
+            progressBar.style.width = '100%';
+            progressText.textContent = '课程生成完成！';
+
+            setTimeout(() => {
+                window.location.href = `{% url 'course_generator' %}`;
+            }, 1500);
+        }
+    } catch (error) {
+        progressText.textContent = '生成过程中发生错误: ' + error.message;
+        generateBtn.disabled = false;
+        btnText.style.display = 'inline';
+        btnLoading.style.display = 'none';
+    }
+});
+
+// Polling fallback function
+function pollCourseStatus(outlineId) {
+    if (!outlineId) {
+        progressText.textContent = '无法获取课程状态，请刷新页面查看结果';
+        generateBtn.disabled = false;
+        btnText.style.display = 'inline';
+        btnLoading.style.display = 'none';
+        return;
+    }
+
+    let pollCount = 0;
+    const maxPolls = 60; // 最多轮询60次（5分钟）
+
+    const pollInterval = setInterval(async () => {
+        pollCount++;
+
+        try {
+            const response = await fetch(`/curriculum/outlines/${outlineId}/status/`);
+            if (!response.ok) {
+                throw new Error('Status check failed');
+            }
+
+            const data = await response.json();
+
+            if (data.status === 'completed') {
+                clearInterval(pollInterval);
+                progressBar.style.width = '100%';
+                progressText.textContent = '课程生成完成！';
+
+                setTimeout(() => {
+                    window.location.href = `{% url 'course_generator' %}`;
+                }, 1500);
+            } else if (data.status === 'failed') {
+                clearInterval(pollInterval);
+                progressText.textContent = `生成失败: ${data.error || '未知错误'}`;
+                generateBtn.disabled = false;
+                btnText.style.display = 'inline';
+                btnLoading.style.display = 'none';
+            } else if (data.progress) {
+                progressBar.style.width = `${data.progress}%`;
+                progressText.textContent = data.message || `生成进度: ${data.progress}%`;
+            }
+
+            if (pollCount >= maxPolls) {
+                clearInterval(pollInterval);
+                progressText.textContent = '轮询超时，请刷新页面查看结果';
+                generateBtn.disabled = false;
+                btnText.style.display = 'inline';
+                btnLoading.style.display = 'none';
+            }
+        } catch (error) {
+            console.error('Polling error:', error);
+            clearInterval(pollInterval);
+            progressText.textContent = '状态检查失败，请刷新页面查看结果';
+            generateBtn.disabled = false;
+            btnText.style.display = 'inline';
+            btnLoading.style.display = 'none';
+        }
+    }, 5000); // 每5秒轮询一次
+}
+} // 闭合安全检查的 if 语句
+
+// Bulk Actions
+const selectAllCheckbox = document.getElementById('selectAllOutlines');
+const outlineCheckboxes = document.querySelectorAll('.outline-select');
+const selectedCount = document.getElementById('selectedCount');
+const bulkDeleteBtn = document.getElementById('bulkDeleteBtn');
+
+if (selectAllCheckbox) {
+    selectAllCheckbox.addEventListener('change', () => {
+        outlineCheckboxes.forEach(checkbox => {
+            checkbox.checked = selectAllCheckbox.checked;
+        });
+        updateSelectedCount();
+    });
+}
+
+outlineCheckboxes.forEach(checkbox => {
+    checkbox.addEventListener('change', updateSelectedCount);
+});
+
+function updateSelectedCount() {
+    const count = document.querySelectorAll('.outline-select:checked').length;
+    if (selectedCount) selectedCount.textContent = `已选 ${count} 项`;
+    if (bulkDeleteBtn) bulkDeleteBtn.disabled = count === 0;
+}
+
+if (bulkDeleteBtn) bulkDeleteBtn.addEventListener('click', async () => {
+    const selectedIds = Array.from(document.querySelectorAll('.outline-select:checked'))
+        .map(cb => cb.value);
+    
+    if (selectedIds.length === 0) return;
+    
+    const titles = Array.from(document.querySelectorAll('.outline-select:checked'))
+        .map(cb => cb.dataset.title);
+    
+    if (!confirm(`确定要删除选中的 ${selectedIds.length} 门课程吗？\n\n${titles.join('\n')}`)) {
+        return;
+    }
+    
+    try {
+        const response = await fetch(bulkDeleteBtn.dataset.url, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+            },
+            body: JSON.stringify({ ids: selectedIds }),
+        });
+        
+        if (response.ok) {
+            selectedIds.forEach(id => {
+                const element = document.getElementById(`course-${id}`);
+                if (element) element.remove();
+            });
+            if (selectAllCheckbox) selectAllCheckbox.checked = false;
+            updateSelectedCount();
+
+            if (!document.querySelector('.generator-course-card')) {
+                window.location.href = `{% url 'course_generator' %}`;
+            }
+        }
+    } catch (error) {
+        alert('删除失败');
+    }
+}); // end bulkDeleteBtn handler
+
+// Delete Single Course
+document.querySelectorAll('.delete-outline-btn').forEach(btn => {
+    btn.addEventListener('click', async () => {
+        const id = btn.dataset.id;
+        const title = btn.dataset.title;
+        
+        if (!confirm(`确定要删除课程 "${title}" 吗？`)) {
+            return;
+        }
+        
+        try {
+            const response = await fetch(btn.dataset.url, {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+                },
+            });
+            
+            if (response.ok) {
+                const element = document.getElementById(`course-${id}`);
+                if (element) element.remove();
+                
+                if (!document.querySelector('.generator-course-card')) {
+                    window.location.href = `{% url 'course_generator' %}`;
+                }
+            }
+        } catch (error) {
+            alert('删除失败');
+        }
+    });
+});
+</script>
+{% endblock %}

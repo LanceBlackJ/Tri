@@ -1,0 +1,142 @@
+{% extends 'base.html' %}
+{% block title %}多模态学习资源生成器{% endblock %}
+
+{% block content %}
+<div class="max-w-3xl mx-auto">
+  <div class="bg-white p-6 rounded-xl shadow-md card">
+    <div class="flex items-center justify-between mb-4">
+      <div>
+        <h1 class="text-xl font-bold">多模态学习资源生成器</h1>
+        <p class="text-sm text-gray-500">基于主题自动生成文档、PPT、H5动画、练习题等资源。</p>
+      </div>
+    </div>
+
+    <form id="genForm" class="space-y-4">
+      <div>
+        <label class="block text-sm font-medium text-gray-700">主题</label>
+        <input type="text" id="topic" name="topic" required placeholder="例如：线性代数 - 特征值与特征向量" class="w-full px-3 py-2 border border-gray-200 rounded-md">
+      </div>
+
+      <div class="flex flex-wrap gap-2">
+        <label class="inline-flex items-center gap-2 px-3 py-2 bg-gray-50 border rounded-md cursor-pointer">
+          <input type="checkbox" name="types" value="doc" checked class="form-checkbox h-4 w-4 text-indigo-600"> 文档
+        </label>
+        <label class="inline-flex items-center gap-2 px-3 py-2 bg-gray-50 border rounded-md cursor-pointer">
+          <input type="checkbox" name="types" value="ppt" checked class="form-checkbox h-4 w-4 text-indigo-600"> PPT
+        </label>
+        <label class="inline-flex items-center gap-2 px-3 py-2 bg-gray-50 border rounded-md cursor-pointer">
+          <input type="checkbox" name="types" value="animation" checked class="form-checkbox h-4 w-4 text-indigo-600"> H5动画
+        </label>
+        <label class="inline-flex items-center gap-2 px-3 py-2 bg-gray-50 border rounded-md cursor-pointer">
+          <input type="checkbox" name="types" value="quiz" checked class="form-checkbox h-4 w-4 text-indigo-600"> 练习题
+        </label>
+        <label class="inline-flex items-center gap-2 px-3 py-2 bg-gray-50 border rounded-md cursor-pointer">
+          <input type="checkbox" name="types" value="video" class="form-checkbox h-4 w-4 text-indigo-600"> 视频脚本
+        </label>
+        <label class="inline-flex items-center gap-2 px-3 py-2 bg-gray-50 border rounded-md cursor-pointer">
+          <input type="checkbox" name="types" value="code" class="form-checkbox h-4 w-4 text-indigo-600"> 代码示例
+        </label>
+      </div>
+
+      <div class="flex items-center justify-between">
+        <label class="inline-flex items-center gap-2 text-sm"><input type="checkbox" id="useStream"> 流式生成（实时预览）</label>
+        <button type="submit" class="btn-primary">生成资源</button>
+      </div>
+    </form>
+
+    <div id="statusBox" class="mt-4 hidden">
+      <h3 class="text-sm font-medium mb-2">任务状态</h3>
+      <div class="flex items-center gap-4 mb-2">
+        <div class="chip">进度：<span id="progNum" class="ml-2 font-semibold">0</span>%</div>
+      </div>
+      <div id="previewGrid" class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4"></div>
+      <pre id="output" class="status-pre"></pre>
+    </div>
+  </div>
+</div>
+
+<script>
+const form = document.getElementById('genForm');
+form.addEventListener('submit', async function(e){
+  e.preventDefault();
+  const topic = document.getElementById('topic').value;
+  const checked = Array.from(document.querySelectorAll('input[name="types"]:checked')).map(n=>n.value);
+  const useStream = document.getElementById('useStream').checked;
+  const statusBox = document.getElementById('statusBox');
+  const out = document.getElementById('output');
+  const prog = document.getElementById('progNum');
+  statusBox.classList.remove('hidden');
+  out.textContent = '';
+  prog.textContent = '0';
+  if(useStream){
+    const es = new EventSource('/agent/api/stream/generate/?topic=' + encodeURIComponent(topic));
+    es.onmessage = function(e){ out.textContent += e.data + '\n'; };
+    es.onerror = function(){ es.close(); };
+    return;
+  }
+  const body = { topic: topic, resource_types: checked };
+  const res = await fetch('/agent/api/multi/generate/', { method:'POST', headers:{'Content-Type':'application/json','X-CSRFToken': getCookie('csrftoken')}, body: JSON.stringify(body) });
+  const data = await res.json();
+  if(!data.ok){ out.textContent = '创建任务失败: '+(data.error||JSON.stringify(data)); return; }
+  const taskId = data.task_id;
+  pollStatus(taskId);
+  // 预先渲染占位资源卡
+  renderPlaceholders(checked);
+});
+
+function renderPlaceholders(types){
+  const grid = document.getElementById('previewGrid');
+  grid.innerHTML = '';
+  types.forEach(t=>{
+    const card = document.createElement('div');
+    card.className = 'card p-4 rounded-lg';
+    card.innerHTML = `<div class="flex items-start gap-3"><div class="w-12 h-12 rounded-md bg-gray-100"></div><div><div class="h-4 w-40 bg-gray-200 rounded mb-2"></div><div class="h-3 w-32 bg-gray-100 rounded"></div></div></div><div class="mt-3 progress-bar"><i style="width:20%"></i></div>`;
+    grid.appendChild(card);
+  });
+}
+
+async function pollStatus(taskId){
+  const out = document.getElementById('output');
+  const progNum = document.getElementById('progNum');
+  let done=false;
+  while(!done){
+    const res = await fetch(`/agent/api/task/${taskId}/status/`);
+    if(!res.ok){ out.textContent = '获取状态失败'; return; }
+    const data = await res.json();
+    progNum.textContent = data.progress || 0;
+    out.textContent = JSON.stringify(data.output || data, null, 2);
+    // 当服务器返回 resources 字段时，更新预览卡内容
+    try{
+      const grid = document.getElementById('previewGrid');
+      if(data.output && data.output.resources){
+        grid.innerHTML = '';
+        for(const [k,v] of Object.entries(data.output.resources)){
+          const card = document.createElement('div');
+          card.className = 'card p-4 rounded-lg';
+          card.innerHTML = `<div class="flex items-start gap-3"><div class="w-12 h-12 rounded-md bg-indigo-50 flex items-center justify-center text-indigo-600"><i class="fas fa-file-alt"></i></div><div><div class="font-medium">${k.toUpperCase()}</div><div class="text-sm text-gray-500">${v.title||''}</div></div></div>`;
+          grid.appendChild(card);
+        }
+      }
+    }catch(e){/* ignore */}
+    if(data.status==='done' || data.status==='failed'){ done = true; break; }
+    await new Promise(r=>setTimeout(r,2000));
+  }
+}
+
+function getCookie(name) {
+  let cookieValue = null;
+  if (document.cookie && document.cookie !== '') {
+    const cookies = document.cookie.split(';');
+    for (let i = 0; i < cookies.length; i++) {
+      const cookie = cookies[i].trim();
+      if (cookie.substring(0, name.length + 1) === (name + '=')) {
+        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+        break;
+      }
+    }
+  }
+  return cookieValue;
+}
+</script>
+
+{% endblock %}

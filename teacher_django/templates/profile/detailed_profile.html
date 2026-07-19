@@ -1,0 +1,525 @@
+{% extends 'base.html' %}
+{% block page_description %}完善你的资料与偏好{% endblock %}
+
+{% load static %}
+
+{% block page_title %}个人资料{% endblock %}
+
+{% block extra_css %}
+<style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+
+    :root {
+        --primary: #3b82f6;
+        --primary-dark: #12568a;
+        --secondary: #f9fafb;
+        --accent: #3b82f6;
+        --text: #1f2937;
+        --text-secondary: #6b7280;
+        --border: #e5e7eb;
+        --card-bg: #ffffff;
+        --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        --radius: 16px;
+        --transition: all 0.3s ease;
+    }
+
+    body {
+        background: linear-gradient(135deg, #f0f9ff, #e0f2fe);
+        min-height: 100vh;
+    }
+
+    .profile-container {
+        max-width: 1200px;
+        margin: 2rem auto;
+        padding: 0 1rem;
+    }
+
+    .profile-header {
+        background: var(--card-bg);
+        border-radius: var(--radius);
+        padding: 2rem;
+        margin-bottom: 2rem;
+        box-shadow: var(--shadow);
+        display: flex;
+        align-items: center;
+        gap: 2rem;
+    }
+
+    .profile-avatar-wrapper {
+        position: relative;
+    }
+
+    .profile-avatar {
+        width: 120px;
+        height: 120px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, var(--primary), var(--accent));
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 3rem;
+        font-weight: 700;
+        color: white;
+        box-shadow: 0 10px 25px rgba(59, 130, 246, 0.3);
+    }
+    
+    .profile-avatar-img {
+        width: 120px;
+        height: 120px;
+        border-radius: 50%;
+        object-fit: cover;
+        box-shadow: 0 10px 25px rgba(59, 130, 246, 0.3);
+    }
+
+    .profile-avatar-badge {
+        position: absolute;
+        bottom: 0;
+        right: 0;
+        width: 32px;
+        height: 32px;
+        background: var(--primary);
+        border-radius: 50%;
+        border: 3px solid var(--card-bg);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-size: 0.8rem;
+    }
+
+    .profile-info {
+        flex: 1;
+    }
+
+    .profile-name {
+        font-size: 2rem;
+        font-weight: 800;
+        color: var(--text);
+        margin-bottom: 0.5rem;
+    }
+
+    .profile-email {
+        font-size: 1rem;
+        color: var(--text-secondary);
+        margin-bottom: 1rem;
+    }
+
+    .profile-stats {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1rem;
+        margin-bottom: 2rem;
+    }
+
+    .stat-card {
+        background: var(--card-bg);
+        border-radius: var(--radius);
+        padding: 1.5rem;
+        text-align: center;
+        box-shadow: var(--shadow);
+        transition: var(--transition);
+    }
+
+    .stat-card:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+    }
+
+    .stat-value {
+        font-size: 2rem;
+        font-weight: 700;
+        color: var(--primary);
+        margin-bottom: 0.25rem;
+    }
+
+    .stat-label {
+        font-size: 0.9rem;
+        color: var(--text-secondary);
+        font-weight: 500;
+    }
+
+    .profile-content-grid {
+        display: grid;
+        grid-template-columns: 2fr 1fr;
+        gap: 2rem;
+    }
+
+    .profile-card {
+        background: var(--card-bg);
+        border-radius: var(--radius);
+        padding: 2rem;
+        box-shadow: var(--shadow);
+        margin-bottom: 2rem;
+    }
+
+    .profile-card-title {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: var(--text);
+        margin-bottom: 1.5rem;
+        padding-bottom: 1rem;
+        border-bottom: 2px solid var(--border);
+    }
+
+    .form-group {
+        margin-bottom: 1.5rem;
+    }
+
+    .form-label {
+        display: block;
+        margin-bottom: 0.5rem;
+        font-weight: 600;
+        color: var(--text);
+    }
+
+    .form-input {
+        width: 100%;
+        padding: 0.75rem 1rem;
+        border: 2px solid var(--border);
+        border-radius: 12px;
+        font-size: 1rem;
+        transition: var(--transition);
+        background: var(--secondary);
+    }
+
+    .form-input:focus {
+        outline: none;
+        border-color: var(--primary);
+        background: white;
+        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+    }
+
+    .form-input:disabled {
+        background: #f3f4f6;
+        cursor: not-allowed;
+    }
+
+    .btn {
+        padding: 0.75rem 1.5rem;
+        border-radius: 12px;
+        font-weight: 600;
+        font-size: 1rem;
+        cursor: pointer;
+        transition: var(--transition);
+        border: none;
+    }
+
+    .btn-primary {
+        background: var(--primary);
+        color: white;
+    }
+
+    .btn-primary:hover {
+        background: var(--primary-dark);
+        transform: translateY(-2px);
+    }
+
+    .activity-list {
+        list-style: none;
+        padding: 0;
+    }
+
+    .activity-item {
+        display: flex;
+        align-items: center;
+        padding: 1rem;
+        border-radius: 12px;
+        margin-bottom: 0.75rem;
+        background: var(--secondary);
+        transition: var(--transition);
+    }
+
+    .activity-item:hover {
+        background: #f3f4f6;
+        transform: translateX(4px);
+    }
+
+    .activity-icon {
+        width: 40px;
+        height: 40px;
+        border-radius: 12px;
+        background: linear-gradient(135deg, var(--primary), var(--accent));
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        margin-right: 1rem;
+        flex-shrink: 0;
+    }
+
+    .activity-content {
+        flex: 1;
+    }
+
+    .activity-title {
+        font-weight: 600;
+        color: var(--text);
+        margin-bottom: 0.25rem;
+    }
+
+    .activity-time {
+        font-size: 0.85rem;
+        color: var(--text-secondary);
+    }
+
+    .profile-sidebar {
+        display: flex;
+        flex-direction: column;
+        gap: 2rem;
+    }
+
+    .learning-card {
+        background: var(--card-bg);
+        border-radius: var(--radius);
+        padding: 1.5rem;
+        box-shadow: var(--shadow);
+    }
+
+    .learning-card-title {
+        font-size: 1.25rem;
+        font-weight: 700;
+        color: var(--text);
+        margin-bottom: 1rem;
+    }
+
+    .progress-bar {
+        width: 100%;
+        height: 8px;
+        background: var(--border);
+        border-radius: 4px;
+        overflow: hidden;
+        margin: 1rem 0;
+    }
+
+    .progress-fill {
+        height: 100%;
+        background: linear-gradient(90deg, var(--primary), var(--accent));
+        border-radius: 4px;
+        transition: width 0.3s ease;
+    }
+
+    .quick-actions {
+        display: grid;
+        gap: 1rem;
+    }
+
+    .action-btn {
+        display: block;
+        padding: 1rem;
+        text-align: center;
+        border-radius: 12px;
+        background: var(--secondary);
+        color: var(--text);
+        text-decoration: none;
+        font-weight: 600;
+        transition: var(--transition);
+    }
+
+    .action-btn:hover {
+        background: var(--primary);
+        color: white;
+        transform: translateY(-2px);
+    }
+
+    @media (max-width: 768px) {
+        .profile-header {
+            flex-direction: column;
+            text-align: center;
+        }
+
+        .profile-content-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .profile-stats {
+            grid-template-columns: repeat(2, 1fr);
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="profile-container">
+    <!-- 个人资料头部 -->
+    <div class="profile-header">
+        <div class="profile-avatar-wrapper">
+            <div class="relative">
+                {% if user.avatar %}
+                    <img src="{{ user.avatar.url }}" alt="头像" class="profile-avatar-img cursor-pointer" onclick="document.getElementById('profile_avatar_upload').click()">
+                {% else %}
+                    <div class="profile-avatar cursor-pointer" onclick="document.getElementById('profile_avatar_upload').click()">{{ user.username|slice:":1"|upper }}</div>
+                {% endif %}
+                <div class="profile-avatar-badge">
+                    <i class="fas fa-user"></i>
+                </div>
+            </div>
+            <form id="avatar_form" method="post" enctype="multipart/form-data" style="display: none;">
+                {% csrf_token %}
+                <input type="file" id="profile_avatar_upload" name="avatar" accept="image/*" onchange="document.getElementById('avatar_form').submit()" style="display: none;">
+            </form>
+        </div>
+        <div class="profile-info">
+            <h1 class="profile-name">{{ user.full_name|default:user.username }}</h1>
+            <p class="profile-email">{{ user.email }}</p>
+            <p class="profile-email">注册时间: {{ user.date_joined|date:"Y年m月d日" }}</p>
+        </div>
+    </div>
+
+    <!-- 统计卡片 -->
+    <div class="profile-stats">
+        <div class="stat-card">
+            <div class="stat-value">{{ enrolled_courses|default:0 }}</div>
+            <div class="stat-label">已选课程</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value">{{ completed_courses|default:0 }}</div>
+            <div class="stat-label">已完成</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value">{{ learning_time|default:0 }}h</div>
+            <div class="stat-label">学习时长</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value">{{ achievement_points|default:0 }}</div>
+            <div class="stat-label">成就积分</div>
+        </div>
+    </div>
+
+    <!-- 主要内容区域 -->
+    <div class="profile-content-grid">
+        <div class="profile-main">
+            <!-- 基本信息卡片 -->
+            <div class="profile-card">
+                <h2 class="profile-card-title">基本资料</h2>
+                <form method="post" enctype="multipart/form-data">
+                    {% csrf_token %}
+                    <div class="form-group">
+                        <label for="username" class="form-label">用户名</label>
+                        <input type="text" id="username" value="{{ user.username }}" disabled
+                               class="form-input">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="email" class="form-label">邮箱</label>
+                        <input type="email" id="email" value="{{ user.email }}" disabled
+                               class="form-input">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="full_name" class="form-label">姓名</label>
+                        <input type="text" id="full_name" name="full_name" value="{{ user.full_name|default:'' }}"
+                               maxlength="50" class="form-input">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="major" class="form-label">专业</label>
+                        <input type="text" id="major" name="major" value="{{ user.major|default:'' }}"
+                               maxlength="50" class="form-input">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="grade" class="form-label">年级</label>
+                        <input type="text" id="grade" name="grade" value="{{ user.grade|default:'' }}"
+                               maxlength="50" class="form-input">
+                    </div>
+
+
+
+                    <button type="submit" class="btn btn-primary">保存更改</button>
+                </form>
+            </div>
+
+            <!-- 学习活动记录 -->
+            <div class="profile-card">
+                <h2 class="profile-card-title">最近学习活动</h2>
+                {% if recent_activities %}
+                <ul class="activity-list">
+                    {% for a in recent_activities %}
+                    <li class="activity-item">
+                        <div class="activity-icon">
+                            <i class="{{ a.icon }}"></i>
+                        </div>
+                        <div class="activity-content">
+                            <div class="activity-title">{{ a.title }}</div>
+                            <div class="activity-time">{{ a.created_at|timesince }}前</div>
+                        </div>
+                    </li>
+                    {% endfor %}
+                </ul>
+                {% else %}
+                <p style="color:#94a3b8;font-size:14px;padding:8px 0;">还没有学习活动记录，去学习/做题后这里会显示你的真实动态。</p>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- 右侧边栏 -->
+        <div class="profile-sidebar">
+            <!-- 学习画像卡片 -->
+            <div class="learning-card">
+                <h3 class="learning-card-title">学习画像</h3>
+                
+                {% if current_profile_obj %}
+                    <!-- 知识掌握情况 -->
+                    <div class="mb-4">
+                        <h4 class="font-semibold mb-2">知识掌握情况</h4>
+                        {% for knowledge_point, level in current_profile_obj.knowledge_profile.items %}
+                            <div class="flex justify-between items-center mb-1">
+                                <span class="text-sm">{{ knowledge_point }}</span>
+                                <span class="text-xs px-2 py-1 rounded-full bg-blue-100 text-blue-800">
+                                    {{ level }}
+                                </span>
+                            </div>
+                        {% empty %}
+                            <p class="text-sm text-gray-500">暂无知识掌握记录</p>
+                        {% endfor %}
+                    </div>
+
+                    <!-- 认知风格 -->
+                    <div class="mb-4">
+                        <h4 class="font-semibold mb-2">认知风格</h4>
+                        <span class="px-2 py-1 rounded-full bg-green-100 text-green-800 text-sm">
+                            {{ current_profile_obj.cognitive_style|default:'未指定' }}
+                        </span>
+                    </div>
+
+                    <!-- 参与度 -->
+                    <div class="mb-4">
+                        <h4 class="font-semibold mb-2">学习参与度</h4>
+                        <div class="progress-bar">
+                            <div class="progress-fill" style="width: {{ engagement.score|default:0 }}%"></div>
+                        </div>
+                        <p class="text-sm text-gray-600">{{ engagement.score|default:0 }}/100</p>
+                    </div>
+
+                    <!-- 学习目标 -->
+                    <div class="mb-4">
+                        <h4 class="font-semibold mb-2">学习目标</h4>
+                        {% for goal in learning_goals_list %}
+                            <div class="flex items-center mb-1">
+                                <i class="fas fa-check-circle text-green-500 mr-2"></i>
+                                <span class="text-sm">{{ goal }}</span>
+                            </div>
+                        {% empty %}
+                            <p class="text-sm text-gray-500">暂无学习目标</p>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <p class="text-sm text-gray-500 mb-3">暂无学习画像数据，请完善学习画像以获得个性化推荐</p>
+                    <a href="{% url 'profile_building' %}" class="action-btn">开始完善画像</a>
+                {% endif %}
+            </div>
+
+            <!-- 快速操作卡片 -->
+            <div class="learning-card">
+                <h3 class="learning-card-title">快速操作</h3>
+                <div class="quick-actions">
+                    <a href="{% url 'profile_building' %}" class="action-btn">完善学习画像</a>
+                    <a href="{% url 'course_library' %}" class="action-btn">浏览课程</a>
+                    <a href="{% url 'learning_progress' %}" class="action-btn">学习进度</a>
+                    <a href="{% url 'detailed_profile' %}" class="action-btn">个人资料</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
